@@ -1,0 +1,568 @@
+From c971936e8225a9c79da484f61e27a2dd0f4fb138 Mon Sep 17 00:00:00 2001
+From: frq09432 <nicolas.louboutin@st.com>
+Date: Mon, 22 Jul 2019 14:39:01 +0200
+Subject: [PATCH 1/6] ARM stm32mp1 DEVICETREE add-on for Android
+
+---
+ arch/arm/boot/dts/stm32mp157-pinctrl.dtsi |   2 +-
+ arch/arm/boot/dts/stm32mp157a-dk1.dts     |  30 ++++++-
+ arch/arm/boot/dts/stm32mp157c-dk2.dts     | 142 ++++++++++++++++++++++++++++++
+ arch/arm/boot/dts/stm32mp157c-ed1.dts     |  23 +++++
+ arch/arm/boot/dts/stm32mp157c-ev1.dts     | 137 ++++++++++++++++++++++++++--
+ arch/arm/boot/dts/stm32mp157c.dtsi        |  16 ++--
+ 6 files changed, 332 insertions(+), 18 deletions(-)
+
+diff --git a/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi b/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi
+index fa931b9..48f5de4 100644
+--- a/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi
++++ b/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi
+@@ -767,7 +767,7 @@
+ 					pinmux = <STM32_PINMUX('H', 6, AF2)>; /* TIM12_CH1 */
+ 					bias-pull-down;
+ 					drive-push-pull;
+-					slew-rate = <0>;
++					slew-rate = <2>;
+ 				};
+ 			};
+ 
+diff --git a/arch/arm/boot/dts/stm32mp157a-dk1.dts b/arch/arm/boot/dts/stm32mp157a-dk1.dts
+index d3f167a..e731005 100644
+--- a/arch/arm/boot/dts/stm32mp157a-dk1.dts
++++ b/arch/arm/boot/dts/stm32mp157a-dk1.dts
+@@ -94,11 +94,19 @@
+ 
+ 	led {
+ 		compatible = "gpio-leds";
++		status = "okay";
++		red {
++			label = "red";
++			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
++			default-state = "off";
++			status = "okay";
++		};
+ 		blue {
+ 			label = "heartbeat";
+ 			gpios = <&gpiod 11 GPIO_ACTIVE_HIGH>;
+ 			linux,default-trigger = "heartbeat";
+ 			default-state = "off";
++			status = "okay";
+ 		};
+ 	};
+ 
+@@ -109,7 +117,7 @@
+ 			"Playback" , "MCLK",
+ 			"Capture" , "MCLK",
+ 			"MICL" , "Mic Bias";
+-		dais = <&sai2a_port &sai2b_port &i2s2_port>;
++		dais = <&sai2a_port &sai2b_port>;
+ 		status = "okay";
+ 	};
+ 
+@@ -123,6 +131,22 @@
+ 		st,hs-rx-offset = <2>;
+ 		st,no-lsfs-sc;
+ 	};
++
++	firmware {
++		android {
++			compatible = "android,firmware";
++			fstab {
++				compatible = "android,fstab";
++				vendor {
++					compatible = "android,vendor";
++					dev = "/dev/block/platform/soc/by-name/vendor";
++					type = "ext4";
++					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
++					fsmgr_flags = "wait,slotselect";
++				};
++			};
++		};
++	};
+ };
+ 
+ &adc {
+@@ -160,7 +184,7 @@
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&cec_pins_b>;
+ 	pinctrl-1 = <&cec_pins_sleep_b>;
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &dma1 {
+@@ -256,7 +280,7 @@
+ 		pinctrl-names = "default", "sleep";
+ 		pinctrl-0 = <&ltdc_pins_a>;
+ 		pinctrl-1 = <&ltdc_pins_sleep_a>;
+-		status = "okay";
++		status = "disabled";
+ 
+ 		ports {
+ 			#address-cells = <1>;
+diff --git a/arch/arm/boot/dts/stm32mp157c-dk2.dts b/arch/arm/boot/dts/stm32mp157c-dk2.dts
+index f41c3a9..49c7122 100644
+--- a/arch/arm/boot/dts/stm32mp157c-dk2.dts
++++ b/arch/arm/boot/dts/stm32mp157c-dk2.dts
+@@ -23,6 +23,23 @@
+ 	};
+ };
+ 
++&adc {
++	status = "disabled";
++};
++
++&dac {
++	status = "disabled";
++};
++
++&dma2 {
++	status = "disabled";
++};
++
++&dmamux1 {
++	dma-masters = <&dma1>;
++	dma-channels = <8>;
++};
++
+ &dsi {
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+@@ -99,6 +116,127 @@
+ 	};
+ };
+ 
++&m4_adc {
++	vref-supply = <&vrefbuf>;
++	status = "okay";
++};
++
++&m4_crc2 {
++	status = "okay";
++};
++
++&m4_cryp2 {
++	status = "okay";
++};
++
++&m4_dac {
++	vref-supply = <&vrefbuf>;
++	status = "okay";
++};
++
++&m4_dma2 {
++	status = "okay";
++};
++
++&m4_hash2 {
++	status = "okay";
++};
++
++&m4_i2c5 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&i2c5_pins_a>;
++	status = "okay";
++};
++
++&m4_rng2 {
++	status = "okay";
++};
++
++&m4_rproc {
++	m4_system_resources {
++		status = "okay";
++
++		button {
++			compatible = "rproc-srm-dev";
++			interrupt-parent = <&gpioa>;
++			interrupts = <14 2>;
++			interrupt-names = "irq";
++			status = "okay";
++		};
++
++		m4_led: m4_led {
++			compatible = "rproc-srm-dev";
++			pinctrl-names = "rproc_default", "rproc_sleep";
++			pinctrl-0 = <&leds_orange_pins>;
++			pinctrl-1 = <&leds_orange_sleep_pins>;
++			status = "okay";
++		};
++	};
++};
++
++&m4_spi4 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&spi4_pins_a>;
++	status = "okay";
++};
++
++
++&m4_timers2 {
++	pinctrl-names = "rproc_default";
++	status = "okay";
++};
++
++&m4_timers7 {
++	pinctrl-names = "rproc_default";
++	status = "okay";
++};
++
++&m4_uart7 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&uart7_pins>;
++	status = "okay";
++};
++
++&pinctrl {
++	uart7_pins: uart7-test-0 {
++		pins1 {
++			pinmux = <STM32_PINMUX('E', 8, AF7)>; /* UART7_TX */
++			bias-disable;
++			drive-push-pull;
++			slew-rate = <0>;
++		};
++		pins2 {
++			pinmux = <STM32_PINMUX('E', 7, AF7)>; /* UART7_RX */
++			bias-disable;
++		};
++	};
++
++	timer1_pins: pwm1-test-0 {
++		pins {
++			pinmux = <STM32_PINMUX('E', 9, AF1)>; /* TIM1_CH1 */
++			bias-pull-down;
++			drive-push-pull;
++			slew-rate = <0>;
++		};
++	};
++
++	leds_orange_pins: leds_orange_test-0 {
++		pins {
++			pinmux = <STM32_PINMUX('H', 7, GPIO)>;
++			bias-pull-up;
++			drive-push-pull;
++			output-low;
++			slew-rate = <0>;
++		};
++	};
++
++	leds_orange_sleep_pins: leds_orange_sleep_test-0 {
++		pins {
++			pinmux = <STM32_PINMUX('H', 7, ANALOG)>;
++		};
++	};
++};
++
+ &rtc {
+ 	st,lsco = <RTC_OUT2_RMP>;
+ 	pinctrl-0 = <&rtc_out2_rmp_pins_a>;
+@@ -128,6 +266,10 @@
+ 	};
+ };
+ 
++&timers1 {
++	status = "disabled";
++};
++
+ /* Bluetooth */
+ &usart2 {
+ 	pinctrl-names = "default", "sleep", "idle";
+diff --git a/arch/arm/boot/dts/stm32mp157c-ed1.dts b/arch/arm/boot/dts/stm32mp157c-ed1.dts
+index 45c41ac..8a126b5 100644
+--- a/arch/arm/boot/dts/stm32mp157c-ed1.dts
++++ b/arch/arm/boot/dts/stm32mp157c-ed1.dts
+@@ -89,6 +89,13 @@
+ 
+ 	led {
+ 		compatible = "gpio-leds";
++		status = "okay";
++		red {
++			label = "red";
++			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
++			default-state = "off";
++			status = "okay";
++		};
+ 		blue {
+ 			label = "heartbeat";
+ 			gpios = <&gpiod 9 GPIO_ACTIVE_HIGH>;
+@@ -109,6 +116,22 @@
+ 		gpios-states = <0>;
+ 		states = <1800000 0x1 2900000 0x0>;
+ 	};
++
++	firmware {
++		android {
++			compatible = "android,firmware";
++			fstab {
++				compatible = "android,fstab";
++				vendor {
++					compatible = "android,vendor";
++					dev = "/dev/block/platform/soc/by-name/vendor";
++					type = "ext4";
++					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
++					fsmgr_flags = "wait,slotselect";
++				};
++			};
++		};
++	};
+ };
+ 
+ &adc {
+diff --git a/arch/arm/boot/dts/stm32mp157c-ev1.dts b/arch/arm/boot/dts/stm32mp157c-ev1.dts
+index 699c581..ecde7f9 100644
+--- a/arch/arm/boot/dts/stm32mp157c-ev1.dts
++++ b/arch/arm/boot/dts/stm32mp157c-ev1.dts
+@@ -99,7 +99,7 @@
+ 		};
+ 	};
+ 
+-	sound {
++	sound: sound {
+ 		compatible = "audio-graph-card";
+ 		label = "STM32MP1-EV";
+ 		routing =
+@@ -108,7 +108,7 @@
+ 			"IN1LN" , "MICBIAS2",
+ 			"DMIC2DAT" , "MICBIAS1",
+ 			"DMIC1DAT" , "MICBIAS1";
+-		dais = <&sai2a_port &sai2b_port &sai4a_port &spdifrx_port
++		dais = <&sai2a_port &sai2b_port
+ 			&dfsdm0_port &dfsdm1_port &dfsdm2_port &dfsdm3_port>;
+ 		status = "okay";
+ 	};
+@@ -173,10 +173,19 @@
+ 	};
+ };
+ 
++&adc {
++	status = "disabled";
++};
++
++&dac {
++	status = "disabled";
++};
++
+ &cec {
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&cec_pins_a>;
+ 	pinctrl-1 = <&cec_pins_sleep_a>;
++	status = "disabled";
+ };
+ 
+ &dcmi {
+@@ -302,6 +311,15 @@
+ 	};
+ };
+ 
++&dma2 {
++	status = "disabled";
++};
++
++&dmamux1 {
++	dma-masters = <&dma1>;
++	dma-channels = <8>;
++};
++
+ &dsi {
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+@@ -365,7 +383,7 @@
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&fmc_pins_a>;
+ 	pinctrl-1 = <&fmc_sleep_pins_a>;
+-	status = "okay";
++	status = "disabled";
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+ 
+@@ -521,6 +539,7 @@
+ 	i2c-scl-falling-time-ns = <20>;
+ 	/delete-property/dmas;
+ 	/delete-property/dma-names;
++	status = "disabled";
+ };
+ 
+ &ltdc {
+@@ -537,6 +556,94 @@
+ 	};
+ };
+ 
++&m4_adc {
++	vref-supply = <&vdda>;
++	status = "okay";
++};
++
++&m4_crc2 {
++	status = "okay";
++};
++
++&m4_cryp2 {
++	status = "okay";
++};
++
++&m4_dac {
++	vref-supply = <&vdda>;
++	status = "okay";
++};
++
++&m4_dma2 {
++	status = "okay";
++};
++
++&m4_hash2 {
++	status = "okay";
++};
++
++&m4_i2c5 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&i2c5_pins_a>;
++	status = "okay";
++};
++
++&m4_qspi {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&qspi_clk_pins_a &qspi_bk1_pins_a &qspi_bk2_pins_a>;
++	status = "okay";
++};
++
++&m4_rproc {
++	m4_system_resources {
++		status = "okay";
++
++		button {
++			compatible = "rproc-srm-dev";
++			interrupt-parent = <&gpioa>;
++			interrupts = <14 2>;
++			interrupt-names = "irq";
++			status = "okay";
++		};
++
++		m4_led: m4_led {
++			compatible = "rproc-srm-dev";
++			pinctrl-names = "rproc_default", "rproc_sleep";
++			pinctrl-0 = <&leds_orange_pins>;
++			pinctrl-1 = <&leds_orange_sleep_pins>;
++			status = "okay";
++		};
++	};
++};
++
++&m4_rng2 {
++	status = "okay";
++};
++
++&m4_spi1 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&spi1_pins_a>;
++	status = "okay";
++};
++
++
++&m4_timers2 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&pwm2_pins_a>;
++	status = "okay";
++};
++
++&m4_timers7 {
++	pinctrl-names = "rproc_default";
++	status = "okay";
++};
++
++&m4_usart3 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&usart3_pins_a>;
++	status = "okay";
++};
++
+ &m_can1 {
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&m_can1_pins_a>;
+@@ -544,6 +651,24 @@
+ 	status = "okay";
+ };
+ 
++&pinctrl {
++	leds_orange_pins: leds_orange_test-0 {
++		pins {
++			pinmux = <STM32_PINMUX('D', 8, GPIO)>;
++			bias-pull-up;
++			drive-push-pull;
++			output-low;
++			slew-rate = <0>;
++		};
++	};
++
++	leds_orange_sleep_pins: leds_orange_sleep_test-0 {
++		pins {
++			pinmux = <STM32_PINMUX('D', 8, ANALOG)>;
++		};
++	};
++};
++
+ &qspi {
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&qspi_clk_pins_a &qspi_bk1_pins_a &qspi_bk2_pins_a>;
+@@ -551,7 +676,7 @@
+ 	reg = <0x58003000 0x1000>, <0x70000000 0x4000000>;
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+-	status = "okay";
++	status = "disabled";
+ 
+ 	flash0: mx66l51235l@0 {
+ 		compatible = "jedec,spi-nor";
+@@ -625,7 +750,7 @@
+ 		clocks = <&rcc SAI4_K>;
+ 		clock-names = "sai_ck";
+ 		st,iec60958;
+-		status = "okay";
++		status = "disabled";
+ 
+ 		sai4a_port: port {
+ 			sai4a_endpoint: endpoint {
+@@ -651,7 +776,7 @@
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&spdifrx_pins_a>;
+ 	pinctrl-1 = <&spdifrx_sleep_pins_a>;
+-	status = "okay";
++	status = "disabled";
+ 
+ 	spdifrx_port: port {
+ 		spdifrx_endpoint: endpoint {
+diff --git a/arch/arm/boot/dts/stm32mp157c.dtsi b/arch/arm/boot/dts/stm32mp157c.dtsi
+index 4f7996f..953b0b7 100644
+--- a/arch/arm/boot/dts/stm32mp157c.dtsi
++++ b/arch/arm/boot/dts/stm32mp157c.dtsi
+@@ -1246,7 +1246,7 @@
+ 			interrupt-names = "event", "wakeup";
+ 			g-rx-fifo-size = <256>;
+ 			g-np-tx-fifo-size = <32>;
+-			g-tx-fifo-size = <128 128 64 64 64 64 32 32>;
++			g-tx-fifo-size = <128 128 128 64 32 32 32 32>;
+ 			dr_mode = "otg";
+ 			usb33d-supply = <&usb33>;
+ 			power-domains = <&pd_core>;
+@@ -1976,13 +1976,13 @@
+ 				compatible = "syscon-reboot-mode";
+ 				offset = <0x150>; /* reg20 */
+ 				mask = <0xff>;
+-				mode-normal = <0>;
+-				mode-fastboot = <0x1>;
+-				mode-recovery = <0x2>;
+-				mode-stm32cubeprogrammer = <0x3>;
+-				mode-ums_mmc0 = <0x10>;
+-				mode-ums_mmc1 = <0x11>;
+-				mode-ums_mmc2 = <0x12>;
++				mode-normal = <0x77665500>;
++				mode-bootloader = <0x77665501>;
++				mode-recovery = <0x77665502>;
++				mode-stm32cubeprogrammer = <0x77665503>;
++				mode-ums_mmc0 = <0x77665510>;
++				mode-ums_mmc1 = <0x77665511>;
++				mode-ums_mmc2 = <0x77665512>;
+ 			};
+ 		};
+ 	};
+-- 
+2.7.4
+
