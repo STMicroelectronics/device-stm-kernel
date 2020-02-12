@@ -1,7 +1,7 @@
-From a395f27c944945e05faf0169fda979d11310eac0 Mon Sep 17 00:00:00 2001
+From 7a9caf830bad44c09a3e39e4c2b65d0b745f15d1 Mon Sep 17 00:00:00 2001
 From: frq09432 <nicolas.louboutin@st.com>
 Date: Wed, 24 Apr 2019 16:41:03 +0200
-Subject: [PATCH 5/6] update addons fragment config
+Subject: [PATCH 35/38] update addons fragment config
 
   Remove duplicated configuration (avoid merge warning)
 ---
@@ -9,10 +9,10 @@ Subject: [PATCH 5/6] update addons fragment config
  1 file changed, 1 deletion(-)
 
 diff --git a/arch/arm/configs/fragment-02-multiv7_addons.config b/arch/arm/configs/fragment-02-multiv7_addons.config
-index 7ba8387..767bdeb 100644
+index 47e42d6..a98d1f4 100644
 --- a/arch/arm/configs/fragment-02-multiv7_addons.config
 +++ b/arch/arm/configs/fragment-02-multiv7_addons.config
-@@ -466,7 +466,6 @@ CONFIG_STM32_IPCC=y
+@@ -467,7 +467,6 @@ CONFIG_STM32_IPCC=y
  #
  # RPMSG_TTY
  #

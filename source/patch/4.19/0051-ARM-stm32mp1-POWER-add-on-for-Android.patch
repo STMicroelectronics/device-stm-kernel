@@ -1,8 +1,9 @@
-From 81636f1d3648f2fee301c86a596644fc322c7258 Mon Sep 17 00:00:00 2001
-From: frq09432 <nicolas.louboutin@st.com>
-Date: Thu, 7 Mar 2019 17:24:42 +0100
-Subject: [PATCH 2/6] ARM stm32mp1 POWER add-on for Android
+From fbb5dddfcde63909072fd06834ba79e512337d71 Mon Sep 17 00:00:00 2001
+From: Christophe Guibout <christophe.guibout@st.com>
+Date: Thu, 9 Jan 2020 18:02:20 +0100
+Subject: [PATCH 2/7] ARM stm32mp1 POWER add-on for Android
 
+Change-Id: I96cce9b009c60c9dac6d67025227e4a5cbf614f0
 ---
  arch/arm/boot/dts/stm32mp157a-dk1.dts |   5 +
  arch/arm/boot/dts/stm32mp157c-ed1.dts |   5 +
@@ -15,37 +16,37 @@ Subject: [PATCH 2/6] ARM stm32mp1 POWER add-on for Android
  create mode 100644 include/linux/power/dummy-charger.h
 
 diff --git a/arch/arm/boot/dts/stm32mp157a-dk1.dts b/arch/arm/boot/dts/stm32mp157a-dk1.dts
-index e731005..430bf14 100644
+index 2f825fe..bfbafb0 100644
 --- a/arch/arm/boot/dts/stm32mp157a-dk1.dts
 +++ b/arch/arm/boot/dts/stm32mp157a-dk1.dts
-@@ -132,6 +132,11 @@
+@@ -130,6 +130,11 @@
+ 		st,hs-rx-offset = <2>;
  		st,no-lsfs-sc;
  	};
- 
++
 +	charger: charger-0 {
 +		compatible = "st,dummy-charger";
 +		status = "okay";
 +	};
-+
- 	firmware {
- 		android {
- 			compatible = "android,firmware";
+ };
+ 
+ &adc {
 diff --git a/arch/arm/boot/dts/stm32mp157c-ed1.dts b/arch/arm/boot/dts/stm32mp157c-ed1.dts
-index 8a126b5..5598149 100644
+index c52aa23..f401096 100644
 --- a/arch/arm/boot/dts/stm32mp157c-ed1.dts
 +++ b/arch/arm/boot/dts/stm32mp157c-ed1.dts
-@@ -117,6 +117,11 @@
+@@ -115,6 +115,11 @@
+ 		gpios-states = <0>;
  		states = <1800000 0x1 2900000 0x0>;
  	};
- 
++
 +	charger: charger-0 {
 +		compatible = "st,dummy-charger";
 +		status = "okay";
 +	};
-+
- 	firmware {
- 		android {
- 			compatible = "android,firmware";
+ };
+ 
+ &adc {
 diff --git a/drivers/power/supply/Kconfig b/drivers/power/supply/Kconfig
 index ff6dab0..6bd0806 100644
 --- a/drivers/power/supply/Kconfig
@@ -77,7 +78,7 @@ index a26b402..63dd710 100644
 +obj-$(CONFIG_CHARGER_DUMMY)	+= dummy-charger.o
 diff --git a/drivers/power/supply/dummy-charger.c b/drivers/power/supply/dummy-charger.c
 new file mode 100644
-index 0000000..5509e0e
+index 00000000..5509e0e
 --- /dev/null
 +++ b/drivers/power/supply/dummy-charger.c
 @@ -0,0 +1,293 @@
@@ -376,7 +377,7 @@ index 0000000..5509e0e
 +MODULE_DESCRIPTION("Dummy battery charger driver");
 diff --git a/include/linux/power/dummy-charger.h b/include/linux/power/dummy-charger.h
 new file mode 100644
-index 0000000..cd4d609
+index 00000000..cd4d609
 --- /dev/null
 +++ b/include/linux/power/dummy-charger.h
 @@ -0,0 +1,38 @@

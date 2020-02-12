@@ -1,21 +1,21 @@
-From 868ad405a99781bd8f0cb6bef93e36803160f09a Mon Sep 17 00:00:00 2001
-From: Christophe Guibout <christophe.guibout@st.com>
-Date: Wed, 17 Jul 2019 15:42:41 +0200
-Subject: [PATCH 4/6] update clean fragment config
+From f887ecc05678827b5643f6bc1fb1896dd9bdd8de Mon Sep 17 00:00:00 2001
+From: frq09432 <nicolas.louboutin@st.com>
+Date: Mon, 9 Dec 2019 14:59:41 +0100
+Subject: [PATCH 34/38] update clean fragment config
 
 Change-Id: I06daf785c5ae7a7f9247188bece19e85955f3888
 ---
- .../arm/configs/fragment-01-multiv7_cleanup.config | 174 +++++++++++++++++++++
- 1 file changed, 174 insertions(+)
+ .../arm/configs/fragment-01-multiv7_cleanup.config | 215 +++++++++++++++++++++
+ 1 file changed, 215 insertions(+)
 
 diff --git a/arch/arm/configs/fragment-01-multiv7_cleanup.config b/arch/arm/configs/fragment-01-multiv7_cleanup.config
-index 22f6ffb..2deaa60 100644
+index 22f6ffb..c4fe315 100644
 --- a/arch/arm/configs/fragment-01-multiv7_cleanup.config
 +++ b/arch/arm/configs/fragment-01-multiv7_cleanup.config
-@@ -62,8 +62,182 @@
- # CONFIG_SECTION_MISMATCH_WARN_ONLY is not set
+@@ -63,7 +63,222 @@
  # CONFIG_LOCKUP_DETECTOR is not set
  # CONFIG_DETECT_HUNG_TASK is not set
+ 
 +# CONFIG_B53 is not set
 +# CONFIG_MPU3050_I2C is not set
  
@@ -46,7 +46,43 @@ index 22f6ffb..2deaa60 100644
 +# CONFIG_TOUCHSCREEN_EDT_FT5X06 is not set
 +# CONFIG_TOUCHSCREEN_ST1232 is not set
 +# CONFIG_INPUT_ADXL34X is not set
- 
++
++# CONFIG_NET_VENDOR_ALACRITECH is not set
++# CONFIG_NET_VENDOR_AMAZON is not set
++# CONFIG_NET_VENDOR_AQUANTIA is not set
++# CONFIG_NET_VENDOR_ARC is not set
++# CONFIG_NET_VENDOR_AURORA is not set
++# CONFIG_NET_VENDOR_BROADCOM is not set
++# CONFIG_NET_VENDOR_CADENCE is not set
++# CONFIG_NET_VENDOR_CAVIUM is not set
++# CONFIG_NET_VENDOR_CIRRUS is not set
++# CONFIG_NET_VENDOR_CORTINA is not set
++# CONFIG_NET_VENDOR_EZCHIP is not set
++# CONFIG_NET_VENDOR_FARADAY is not set
++# CONFIG_NET_VENDOR_HISILICON is not set
++# CONFIG_NET_VENDOR_HUAWEI is not set
++# CONFIG_NET_VENDOR_I825XX is not set
++# CONFIG_NET_VENDOR_INTEL is not set
++# CONFIG_NET_VENDOR_MARVELL is not set
++# CONFIG_NET_VENDOR_MELLANOX is not set
++# CONFIG_NET_VENDOR_MICREL is not set
++# CONFIG_NET_VENDOR_MICROCHIP is not set
++# CONFIG_NET_VENDOR_MICROSEMI is not set
++# CONFIG_NET_VENDOR_NATSEMI is not set
++# CONFIG_NET_VENDOR_NETRONOME is not set
++# CONFIG_NET_VENDOR_NI is not set
++# CONFIG_NET_VENDOR_8390 is not set
++# CONFIG_NET_VENDOR_QUALCOMM is not set
++# CONFIG_NET_VENDOR_RENESAS is not set
++# CONFIG_NET_VENDOR_ROCKER is not set
++# CONFIG_NET_VENDOR_SAMSUNG is not set
++# CONFIG_NET_VENDOR_SEEQ is not set
++# CONFIG_NET_VENDOR_SOLARFLARE is not set
++# CONFIG_NET_VENDOR_SMSC is not set
++# CONFIG_NET_VENDOR_SOCIONEXT is not set
++# CONFIG_NET_VENDOR_VIA is not set
++# CONFIG_NET_VENDOR_WIZNET is not set
++
 +# CONFIG_PINCTRL_AS3722 is not set
 +# CONFIG_PINCTRL_PALMAS is not set
 +
@@ -172,6 +208,10 @@ index 22f6ffb..2deaa60 100644
 +# CONFIG_REGULATOR_MAX8973 is not set
 +# CONFIG_REGULATOR_TPS51632 is not set
 +# CONFIG_REGULATOR_TPS62360 is not set
++# CONFIG_REGULATOR_TWL4030 is not set
++# CONFIG_REGULATOR_VEXPRESS is not set
++
++# CONFIG_RTC_DRV_TWL4030 is not set
 +
 +# CONFIG_BATTERY_SBS is not set
 +# CONFIG_BATTERY_MAX17040 is not set

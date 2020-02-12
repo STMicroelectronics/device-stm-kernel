@@ -1,0 +1,34 @@
+From 4a5b20da58b757f25c6ec75e0f944af357e407e7 Mon Sep 17 00:00:00 2001
+From: Christophe Guibout <christophe.guibout@st.com>
+Date: Thu, 9 Jan 2020 15:26:06 +0100
+Subject: [PATCH 7/7] drm/stm: ltdc: check crtc state before enabling LIE
+
+Signed-off-by: Christophe Guibout <christophe.guibout@st.com>
+Signed-off-by: Yannick Fertre <yannick.fertre@st.com>
+Change-Id: Ie27b0ba1f5d72d3034b6a4519fa5aefbf41429ca
+---
+ drivers/gpu/drm/stm/ltdc.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/stm/ltdc.c b/drivers/gpu/drm/stm/ltdc.c
+index c19e111..9b95c97 100644
+--- a/drivers/gpu/drm/stm/ltdc.c
++++ b/drivers/gpu/drm/stm/ltdc.c
+@@ -635,9 +635,13 @@ static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+ static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
+ {
+ 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
++    struct drm_crtc_state *state = crtc->state;
+ 
+ 	DRM_DEBUG_DRIVER("\n");
+-	reg_set(ldev->regs, LTDC_IER, IER_LIE);
++	if (state->enable)
++		reg_set(ldev->regs, LTDC_IER, IER_LIE);
++	else
++		return -EPERM;
+ 
+ 	return 0;
+ }
+-- 
+2.7.4
+

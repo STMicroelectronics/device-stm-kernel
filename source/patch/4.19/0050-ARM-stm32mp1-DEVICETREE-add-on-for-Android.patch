@@ -1,19 +1,20 @@
-From c971936e8225a9c79da484f61e27a2dd0f4fb138 Mon Sep 17 00:00:00 2001
-From: frq09432 <nicolas.louboutin@st.com>
-Date: Mon, 22 Jul 2019 14:39:01 +0200
-Subject: [PATCH 1/6] ARM stm32mp1 DEVICETREE add-on for Android
+From 626ba512337046855bfc200a4b0eb238e3471c10 Mon Sep 17 00:00:00 2001
+From: Christophe Guibout <christophe.guibout@st.com>
+Date: Mon, 13 Jan 2020 14:35:44 +0100
+Subject: [PATCH] ARM stm32mp1 DEVICETREE add-on for Android
 
+Change-Id: Idafe22b05e1a6f170653dde81f7889cb8c9253e3
 ---
  arch/arm/boot/dts/stm32mp157-pinctrl.dtsi |   2 +-
- arch/arm/boot/dts/stm32mp157a-dk1.dts     |  30 ++++++-
- arch/arm/boot/dts/stm32mp157c-dk2.dts     | 142 ++++++++++++++++++++++++++++++
- arch/arm/boot/dts/stm32mp157c-ed1.dts     |  23 +++++
- arch/arm/boot/dts/stm32mp157c-ev1.dts     | 137 ++++++++++++++++++++++++++--
+ arch/arm/boot/dts/stm32mp157a-dk1.dts     |  14 ++-
+ arch/arm/boot/dts/stm32mp157c-dk2.dts     | 143 ++++++++++++++++++++++++++++++
+ arch/arm/boot/dts/stm32mp157c-ed1.dts     |   7 ++
+ arch/arm/boot/dts/stm32mp157c-ev1.dts     | 133 ++++++++++++++++++++++++++-
  arch/arm/boot/dts/stm32mp157c.dtsi        |  16 ++--
- 6 files changed, 332 insertions(+), 18 deletions(-)
+ 6 files changed, 299 insertions(+), 16 deletions(-)
 
 diff --git a/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi b/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi
-index fa931b9..48f5de4 100644
+index dd796ec..d991f2f 100644
 --- a/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi
 +++ b/arch/arm/boot/dts/stm32mp157-pinctrl.dtsi
 @@ -767,7 +767,7 @@
@@ -26,10 +27,10 @@ index fa931b9..48f5de4 100644
  			};
  
 diff --git a/arch/arm/boot/dts/stm32mp157a-dk1.dts b/arch/arm/boot/dts/stm32mp157a-dk1.dts
-index d3f167a..e731005 100644
+index 8f11a91..2f825fe 100644
 --- a/arch/arm/boot/dts/stm32mp157a-dk1.dts
 +++ b/arch/arm/boot/dts/stm32mp157a-dk1.dts
-@@ -94,11 +94,19 @@
+@@ -93,11 +93,19 @@
  
  	led {
  		compatible = "gpio-leds";
@@ -49,7 +50,7 @@ index d3f167a..e731005 100644
  		};
  	};
  
-@@ -109,7 +117,7 @@
+@@ -108,7 +116,7 @@
  			"Playback" , "MCLK",
  			"Capture" , "MCLK",
  			"MICL" , "Mic Bias";
@@ -58,30 +59,7 @@ index d3f167a..e731005 100644
  		status = "okay";
  	};
  
-@@ -123,6 +131,22 @@
- 		st,hs-rx-offset = <2>;
- 		st,no-lsfs-sc;
- 	};
-+
-+	firmware {
-+		android {
-+			compatible = "android,firmware";
-+			fstab {
-+				compatible = "android,fstab";
-+				vendor {
-+					compatible = "android,vendor";
-+					dev = "/dev/block/platform/soc/by-name/vendor";
-+					type = "ext4";
-+					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-+					fsmgr_flags = "wait,slotselect";
-+				};
-+			};
-+		};
-+	};
- };
- 
- &adc {
-@@ -160,7 +184,7 @@
+@@ -159,7 +167,7 @@
  	pinctrl-names = "default", "sleep";
  	pinctrl-0 = <&cec_pins_b>;
  	pinctrl-1 = <&cec_pins_sleep_b>;
@@ -89,18 +67,18 @@ index d3f167a..e731005 100644
 +	status = "disabled";
  };
  
- &dma1 {
-@@ -256,7 +280,7 @@
- 		pinctrl-names = "default", "sleep";
- 		pinctrl-0 = <&ltdc_pins_a>;
- 		pinctrl-1 = <&ltdc_pins_sleep_a>;
--		status = "okay";
-+		status = "disabled";
+ &cpu0{
+@@ -493,7 +501,7 @@
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&ltdc_pins_a>;
+ 	pinctrl-1 = <&ltdc_pins_sleep_a>;
+-	status = "okay";
++	status = "disabled";
  
- 		ports {
- 			#address-cells = <1>;
+ 	port {
+ 		#address-cells = <1>;
 diff --git a/arch/arm/boot/dts/stm32mp157c-dk2.dts b/arch/arm/boot/dts/stm32mp157c-dk2.dts
-index f41c3a9..49c7122 100644
+index d11fbb8..617914d 100644
 --- a/arch/arm/boot/dts/stm32mp157c-dk2.dts
 +++ b/arch/arm/boot/dts/stm32mp157c-dk2.dts
 @@ -23,6 +23,23 @@
@@ -127,7 +105,7 @@ index f41c3a9..49c7122 100644
  &dsi {
  	#address-cells = <1>;
  	#size-cells = <0>;
-@@ -99,6 +116,127 @@
+@@ -99,6 +116,132 @@
  	};
  };
  
@@ -252,25 +230,19 @@ index f41c3a9..49c7122 100644
 +	};
 +};
 +
- &rtc {
- 	st,lsco = <RTC_OUT2_RMP>;
- 	pinctrl-0 = <&rtc_out2_rmp_pins_a>;
-@@ -128,6 +266,10 @@
- 	};
- };
- 
 +&timers1 {
 +	status = "disabled";
 +};
 +
- /* Bluetooth */
- &usart2 {
- 	pinctrl-names = "default", "sleep", "idle";
++
+ &rtc {
+ 	st,lsco = <RTC_OUT2_RMP>;
+ 	pinctrl-0 = <&rtc_out2_rmp_pins_a>;
 diff --git a/arch/arm/boot/dts/stm32mp157c-ed1.dts b/arch/arm/boot/dts/stm32mp157c-ed1.dts
-index 45c41ac..8a126b5 100644
+index 1d7fb63..c52aa23 100644
 --- a/arch/arm/boot/dts/stm32mp157c-ed1.dts
 +++ b/arch/arm/boot/dts/stm32mp157c-ed1.dts
-@@ -89,6 +89,13 @@
+@@ -88,6 +88,13 @@
  
  	led {
  		compatible = "gpio-leds";
@@ -284,43 +256,11 @@ index 45c41ac..8a126b5 100644
  		blue {
  			label = "heartbeat";
  			gpios = <&gpiod 9 GPIO_ACTIVE_HIGH>;
-@@ -109,6 +116,22 @@
- 		gpios-states = <0>;
- 		states = <1800000 0x1 2900000 0x0>;
- 	};
-+
-+	firmware {
-+		android {
-+			compatible = "android,firmware";
-+			fstab {
-+				compatible = "android,fstab";
-+				vendor {
-+					compatible = "android,vendor";
-+					dev = "/dev/block/platform/soc/by-name/vendor";
-+					type = "ext4";
-+					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-+					fsmgr_flags = "wait,slotselect";
-+				};
-+			};
-+		};
-+	};
- };
- 
- &adc {
 diff --git a/arch/arm/boot/dts/stm32mp157c-ev1.dts b/arch/arm/boot/dts/stm32mp157c-ev1.dts
-index 699c581..ecde7f9 100644
+index 8628ddd..3c8498d 100644
 --- a/arch/arm/boot/dts/stm32mp157c-ev1.dts
 +++ b/arch/arm/boot/dts/stm32mp157c-ev1.dts
-@@ -99,7 +99,7 @@
- 		};
- 	};
- 
--	sound {
-+	sound: sound {
- 		compatible = "audio-graph-card";
- 		label = "STM32MP1-EV";
- 		routing =
-@@ -108,7 +108,7 @@
+@@ -107,7 +107,7 @@
  			"IN1LN" , "MICBIAS2",
  			"DMIC2DAT" , "MICBIAS1",
  			"DMIC1DAT" , "MICBIAS1";
@@ -329,7 +269,7 @@ index 699c581..ecde7f9 100644
  			&dfsdm0_port &dfsdm1_port &dfsdm2_port &dfsdm3_port>;
  		status = "okay";
  	};
-@@ -173,10 +173,19 @@
+@@ -172,10 +172,19 @@
  	};
  };
  
@@ -349,7 +289,7 @@ index 699c581..ecde7f9 100644
  };
  
  &dcmi {
-@@ -302,6 +311,15 @@
+@@ -301,6 +310,15 @@
  	};
  };
  
@@ -365,16 +305,7 @@ index 699c581..ecde7f9 100644
  &dsi {
  	#address-cells = <1>;
  	#size-cells = <0>;
-@@ -365,7 +383,7 @@
- 	pinctrl-names = "default", "sleep";
- 	pinctrl-0 = <&fmc_pins_a>;
- 	pinctrl-1 = <&fmc_sleep_pins_a>;
--	status = "okay";
-+	status = "disabled";
- 	#address-cells = <1>;
- 	#size-cells = <0>;
- 
-@@ -521,6 +539,7 @@
+@@ -520,6 +538,7 @@
  	i2c-scl-falling-time-ns = <20>;
  	/delete-property/dmas;
  	/delete-property/dma-names;
@@ -382,7 +313,7 @@ index 699c581..ecde7f9 100644
  };
  
  &ltdc {
-@@ -537,6 +556,94 @@
+@@ -536,6 +555,94 @@
  	};
  };
  
@@ -477,7 +408,7 @@ index 699c581..ecde7f9 100644
  &m_can1 {
  	pinctrl-names = "default", "sleep";
  	pinctrl-0 = <&m_can1_pins_a>;
-@@ -544,6 +651,24 @@
+@@ -543,6 +650,24 @@
  	status = "okay";
  };
  
@@ -502,7 +433,7 @@ index 699c581..ecde7f9 100644
  &qspi {
  	pinctrl-names = "default", "sleep";
  	pinctrl-0 = <&qspi_clk_pins_a &qspi_bk1_pins_a &qspi_bk2_pins_a>;
-@@ -551,7 +676,7 @@
+@@ -550,7 +675,7 @@
  	reg = <0x58003000 0x1000>, <0x70000000 0x4000000>;
  	#address-cells = <1>;
  	#size-cells = <0>;
@@ -511,7 +442,7 @@ index 699c581..ecde7f9 100644
  
  	flash0: mx66l51235l@0 {
  		compatible = "jedec,spi-nor";
-@@ -625,7 +750,7 @@
+@@ -624,7 +749,7 @@
  		clocks = <&rcc SAI4_K>;
  		clock-names = "sai_ck";
  		st,iec60958;
@@ -520,20 +451,20 @@ index 699c581..ecde7f9 100644
  
  		sai4a_port: port {
  			sai4a_endpoint: endpoint {
-@@ -651,7 +776,7 @@
+@@ -650,7 +775,7 @@
  	pinctrl-names = "default", "sleep";
  	pinctrl-0 = <&spdifrx_pins_a>;
- 	pinctrl-1 = <&spdifrx_sleep_pins_a>;
+ 	pinctrl-1 = <&spdifrx_pins_a>;
 -	status = "okay";
 +	status = "disabled";
  
  	spdifrx_port: port {
  		spdifrx_endpoint: endpoint {
 diff --git a/arch/arm/boot/dts/stm32mp157c.dtsi b/arch/arm/boot/dts/stm32mp157c.dtsi
-index 4f7996f..953b0b7 100644
+index d44c573..3811e8e 100644
 --- a/arch/arm/boot/dts/stm32mp157c.dtsi
 +++ b/arch/arm/boot/dts/stm32mp157c.dtsi
-@@ -1246,7 +1246,7 @@
+@@ -1269,7 +1269,7 @@
  			interrupt-names = "event", "wakeup";
  			g-rx-fifo-size = <256>;
  			g-np-tx-fifo-size = <32>;
@@ -542,7 +473,7 @@ index 4f7996f..953b0b7 100644
  			dr_mode = "otg";
  			usb33d-supply = <&usb33>;
  			power-domains = <&pd_core>;
-@@ -1976,13 +1976,13 @@
+@@ -2010,13 +2010,13 @@
  				compatible = "syscon-reboot-mode";
  				offset = <0x150>; /* reg20 */
  				mask = <0xff>;

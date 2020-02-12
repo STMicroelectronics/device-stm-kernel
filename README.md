@@ -6,7 +6,7 @@ This module is used to provide
 
 It is part of the STMicroelectronics delivery for Android (see the [delivery][] for more information).
 
-[delivery]: https://wiki.st.com/stm32mpu/wiki/STM32MP15_distribution_for_Android_release_note_-_v1.0.0
+[delivery]: https://wiki.st.com/stm32mpu/wiki/STM32MP15_distribution_for_Android_release_note_-_v1.1.0
 
 ## Description ##
 
@@ -19,7 +19,7 @@ Please see the release notes for more details.
 * The [release notes][] provide information on the release.
 * The [distribution package][] provides detailed information on how to use this delivery.
 
-[release notes]: https://wiki.st.com/stm32mpu/wiki/STM32MP15_distribution_for_Android_release_note_-_v1.0.0
+[release notes]: https://wiki.st.com/stm32mpu/wiki/STM32MP15_distribution_for_Android_release_note_-_v1.1.0
 [distribution package]: https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package_for_Android
 
 ## Dependencies ##
@@ -32,7 +32,6 @@ This module contains several files and directories.
 
 **prebuilt**
 * `./prebuilt/kernel-stm32mp157c`: prebuilt image of the Linux kernel
-* `./prebuilt/vmlinux-stm32mp157c`: prebuilt image of the Linux kernel (used for debug)
 * `./prebuilt/dts/*`: prebuilt images of the device tree (.dtb)
 * `./prebuilt/modules/*`: prebuilt images of the driver modules (.ko)
 
