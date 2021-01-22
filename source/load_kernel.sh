@@ -19,13 +19,13 @@
 #######################################
 # Constants
 #######################################
-SCRIPT_VERSION="1.0"
+SCRIPT_VERSION="1.1"
 
 SOC_FAMILY="stm32mp1"
 SOC_NAME="stm32mp15"
 SOC_VERSION="stm32mp157c"
 
-KERNEL_VERSION=4.19
+KERNEL_VERSION=5.4
 
 if [ -n "${ANDROID_BUILD_TOP+1}" ]; then
   TOP_PATH=${ANDROID_BUILD_TOP}
@@ -41,7 +41,7 @@ fi
 KERNEL_PATH="${TOP_PATH}/device/stm/${SOC_FAMILY}-kernel"
 COMMON_PATH="${TOP_PATH}/device/stm/${SOC_FAMILY}"
 
-KERNEL_CONFIG_PATH="${KERNEL_PATH}/source/patch/${KERNEL_VERSION}/android_kernel.config"
+KERNEL_CONFIG_PATH="${KERNEL_PATH}/source/patch/android_kernel.config"
 KERNEL_PATCH_PATH="${KERNEL_PATH}/source/patch/${KERNEL_VERSION}"
 
 KERNEL_CONFIG_STATUS_PATH="${COMMON_PATH}/configs/kernel.config"
@@ -50,7 +50,7 @@ KERNEL_CONFIG_STATUS_PATH="${COMMON_PATH}/configs/kernel.config"
 # Variables
 #######################################
 nb_states=2
-force_loading=0
+force_load=0
 msg_patch=0
 
 #######################################
@@ -88,8 +88,9 @@ usage()
   echo "  based on the configuration file $KERNEL_CONFIG_PATH"
   empty_line
   echo "Options:"
-  echo "  -h/--help: print this message"
-  echo "  -v/--version: get script version"
+  echo "  -h / --help: print this message"
+  echo "  -v / --version: get script version"
+  echo "  -f / --force: force kernel load"
   empty_line
 }
 
@@ -245,7 +246,9 @@ apply_patch()
 
   loc_patch_path=${KERNEL_PATCH_PATH}/
   loc_patch_path+=$1
-  loc_patch_path+=".patch"
+  if [ "${1##*.}" != "patch" ];then
+    loc_patch_path+=".patch"
+  fi
 
   \git am ${loc_patch_path} &> /dev/null
   if [ $? -ne 0 ]; then
@@ -259,41 +262,71 @@ apply_patch()
 # Main
 #######################################
 
-# Check the current usage
-if [ $# -gt 1 ]
-then
+# Check that the current script is not sourced
+if [[ "$0" != "$BASH_SOURCE" ]]; then
+  empty_line
+  error "This script shall not be sourced"
+  empty_line
   usage
-  popd >/dev/null 2>&1
-  exit 0
+  \popd >/dev/null 2>&1
+  return
 fi
 
-while test "$1" != ""; do
-  arg=$1
-  case $arg in
-    "-h"|"--help" )
+# check the options
+while getopts "hvf-:" option; do
+  case "${option}" in
+    -)
+      # Treat long options
+      case "${OPTARG}" in
+        help)
+          usage
+          popd >/dev/null 2>&1
+          exit 0
+          ;;
+        version)
+          echo "`basename $0` version ${SCRIPT_VERSION}"
+          \popd >/dev/null 2>&1
+          exit 0
+          ;;
+        force)
+          force_load=1
+          ;;
+        *)
+          usage
+          popd >/dev/null 2>&1
+          exit 1
+          ;;
+      esac;;
+    # Treat short options
+    h)
       usage
       popd >/dev/null 2>&1
       exit 0
       ;;
-
-    "-v"|"--version" )
+    v)
       echo "`basename $0` version ${SCRIPT_VERSION}"
       \popd >/dev/null 2>&1
       exit 0
       ;;
-
-    "-f"|"--force" )
-      force_loading=1
+    f)
+      force_load=1
       ;;
-
-    ** )
+    *)
       usage
       popd >/dev/null 2>&1
-      exit 0
+      exit 1
       ;;
   esac
-  shift
 done
+
+shift $((OPTIND-1))
+
+if [ $# -gt 0 ]; then
+  error "Unknown command : $*"
+  usage
+  popd >/dev/null 2>&1
+  exit 1
+fi
 
 # Check existence of the KERNEL configuration file
 if [[ ! -f ${KERNEL_CONFIG_PATH} ]]; then
@@ -306,7 +339,7 @@ fi
 check_kernel_status
 kernel_status=$?
 
-if [[ ${kernel_status} == 1 ]] && [[ ${force_loading} == 0 ]]; then
+if [[ ${kernel_status} == 1 ]] && [[ ${force_load} == 0 ]]; then
   blue "The kernel has been already loaded"
   echo " If you want to reload it"
   echo "   execute the script with -f/--force option"
@@ -362,7 +395,7 @@ while IFS='' read -r line || [[ -n $line ]]; do
         kernel_path=($(echo $line | awk '{ print $2 }'))
         msg_patch=0
         \rm -rf ${kernel_path}
-        if [[ ${force_loading} == 1 ]]; then
+        if [[ ${force_load} == 1 ]]; then
           \rm -f ${KERNEL_CONFIG_STATUS_PATH}
         fi
         ;;

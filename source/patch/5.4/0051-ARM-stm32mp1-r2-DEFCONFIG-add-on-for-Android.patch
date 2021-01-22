@@ -1,0 +1,404 @@
+From e5bdc3f11057fb37a29c1a12695d058c151283e6 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Thu, 2 Jul 2020 11:46:02 +0200
+Subject: [PATCH 23/31] ARM-stm32mp1-r2-DEFCONFIG add-on for Android
+
+---
+ .../fragment-01-multiv7_cleanup.config        | 322 +++++++++++++++++-
+ .../configs/fragment-02-multiv7_addons.config |   1 -
+ 2 files changed, 321 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/fragment-01-multiv7_cleanup.config b/arch/arm/configs/fragment-01-multiv7_cleanup.config
+index 3c43593d5665..e53d5a469744 100644
+--- a/arch/arm/configs/fragment-01-multiv7_cleanup.config
++++ b/arch/arm/configs/fragment-01-multiv7_cleanup.config
+@@ -5,6 +5,7 @@
+ # CONFIG_ARCH_MVEBU is not set
+ # CONFIG_ARCH_ALPINE is not set
+ # CONFIG_ARCH_ARTPEC is not set
++# CONFIG_ARCH_ASPEED is not set
+ # CONFIG_ARCH_AT91 is not set
+ # CONFIG_ARCH_BCM is not set
+ # CONFIG_ARCH_BERLIN is not set
+@@ -13,6 +14,7 @@
+ # CONFIG_ARCH_HISI is not set
+ # CONFIG_ARCH_KEYSTONE is not set
+ # CONFIG_ARCH_MESON is not set
++# CONFIG_ARCH_MILBEAUT is not set
+ # CONFIG_ARCH_MXC is not set
+ # CONFIG_ARCH_MEDIATEK is not set
+ 
+@@ -50,6 +52,9 @@
+ # CONFIG_CAN_RCAR is not set
+ # CONFIG_GPIO_PCA953X is not set
+ # CONFIG_GPIO_PCF857X is not set
++# CONFIG_GPIO_DWAPB is not set
++# CONFIG_GPIO_XILINX is not set
++# CONFIG_GPIO_TWL4030 is not set
+ # CONFIG_STAGING is not set
+ # CONFIG_CHROME_PLATFORMS is not set
+ # CONFIG_SOC_BRCMSTB is not set
+@@ -63,6 +68,14 @@
+ # CONFIG_SECTION_MISMATCH_WARN_ONLY is not set
+ # CONFIG_LOCKUP_DETECTOR is not set
+ # CONFIG_DETECT_HUNG_TASK is not set
++# CONFIG_POWER_RESET_BRCMKONA is not set
++# CONFIG_POWER_RESET_BRCMSTB is not set
++# CONFIG_POWER_RESET_VEXPRESS is not set
++# CONFIG_VEXPRESS_CONFIG is not set
++# CONFIG_TWL4030_CORE is not set
++# CONFIG_TWL4030_POWER is not set
++# CONFIG_ABX500_CORE is not set
++# CONFIG_VIDEO_VIVID is not set
+ 
+ #
+ # Processor Features
+@@ -86,7 +99,11 @@
+ # CONFIG_ATAGS is not set
+ # CONFIG_KEXEC is not set
+ # CONFIG_EFI is not set
+-
++# CONFIG_ARM_APPENDED_DTB is not set
++# CONFIG_ARM_ATAG_DTB_COMPAT is not set
++# CONFIG_CMDLINE_PARTITION is not set
++# CONFIG_MTD_CMDLINE_PARTS is not set
++# CONFIG_BLK_CMDLINE_PARSER is not set
+ #
+ # CAN SPI interfaces
+ #
+@@ -95,6 +112,7 @@
+ # Serial drivers
+ #
+ # CONFIG_SERIAL_8250 is not set
++# CONFIG_SERIAL_SAMSUNG is not set
+ 
+ #
+ # Non-8250 serial port support
+@@ -106,6 +124,12 @@
+ # CONFIG_SERIAL_ST_ASC is not set
+ # CONFIG_VIRTIO_CONSOLE is not set
+ 
++
++#
++# Firmware Drivers
++#
++# CONFIG_QCOM_SCM is not set
++
+ #
+ # I2C Hardware Bus support
+ #
+@@ -146,3 +170,299 @@
+ # Debug Lockups and Hangs
+ #
+ # CONFIG_SCHED_DEBUG is not set
++
++#
++# Misc devices
++#
++# CONFIG_AD525X_DPOT is not set
++# CONFIG_ICS932S401 is not set
++# CONFIG_APDS9802ALS is not set
++# CONFIG_ISL29003 is not set
++# CONFIG_B53 is not set
++
++#
++# EEPROM support
++#
++# CONFIG_EEPROM_AT24 is not set
++# CONFIG_EEPROM_93CX6 is not set
++
++# CONFIG_NET_VENDOR_ALACRITECH is not set
++# CONFIG_NET_VENDOR_AMAZON is not set
++# CONFIG_NET_VENDOR_AQUANTIA is not set
++# CONFIG_NET_VENDOR_ARC is not set
++# CONFIG_NET_VENDOR_AURORA is not set
++# CONFIG_NET_VENDOR_CADENCE is not set
++# CONFIG_NET_VENDOR_CAVIUM is not set
++# CONFIG_NET_VENDOR_CIRRUS is not set
++# CONFIG_NET_VENDOR_CORTINA is not set
++# CONFIG_NET_VENDOR_EZCHIP is not set
++# CONFIG_NET_VENDOR_FARADAY is not set
++# CONFIG_NET_VENDOR_HISILICON is not set
++# CONFIG_NET_VENDOR_HUAWEI is not set
++# CONFIG_NET_VENDOR_INTEL is not set
++# CONFIG_NET_VENDOR_MARVELL is not set
++# CONFIG_NET_VENDOR_MELLANOX is not set
++# CONFIG_NET_VENDOR_MICREL is not set
++# CONFIG_NET_VENDOR_MICROCHIP is not set
++# CONFIG_NET_VENDOR_MICROSEMI is not set
++# CONFIG_NET_VENDOR_NATSEMI is not set
++# CONFIG_NET_VENDOR_NETRONOME is not set
++# CONFIG_NET_VENDOR_NI is not set
++# CONFIG_NET_VENDOR_QUALCOMM is not set
++# CONFIG_NET_VENDOR_RENESAS is not set
++# CONFIG_NET_VENDOR_ROCKER is not set
++# CONFIG_NET_VENDOR_SAMSUNG is not set
++# CONFIG_NET_VENDOR_SEEQ is not set
++# CONFIG_NET_VENDOR_SOLARFLARE is not set
++# CONFIG_NET_VENDOR_SMSC is not set
++# CONFIG_NET_VENDOR_SOCIONEXT is not set
++# CONFIG_NET_VENDOR_VIA is not set
++# CONFIG_NET_VENDOR_WIZNET is not set
++# CONFIG_NET_VENDOR_XILINX is not set
++
++#
++# MII PHY device drivers
++#
++# CONFIG_AT803X_PHY is not set
++# CONFIG_BROADCOM_PHY is not set
++# CONFIG_ICPLUS_PHY is not set
++# CONFIG_MARVELL_PHY is not set
++# CONFIG_MICREL_PHY is not set
++# CONFIG_ROCKCHIP_PHY is not set
++# CONFIG_SMSC_PHY is not set
++
++#
++# Input Device Drivers
++#
++# CONFIG_KEYBOARD_ATKBD is not set
++# CONFIG_KEYBOARD_QT1070 is not set
++# CONFIG_KEYBOARD_SAMSUNG is not set
++# CONFIG_TOUCHSCREEN_ADC is not set
++# CONFIG_TOUCHSCREEN_ATMEL_MXT is not set
++# CONFIG_TOUCHSCREEN_ELAN is not set
++# CONFIG_TOUCHSCREEN_MMS114 is not set
++# CONFIG_TOUCHSCREEN_ST1232 is not set
++# CONFIG_INPUT_MAX77693_HAPTIC is not set
++# CONFIG_INPUT_MAX8997_HAPTIC is not set
++# CONFIG_INPUT_ADXL34X is not set
++
++
++# CONFIG_TCG_TPM is not set
++
++#
++# SPI Master Controller Drivers
++#
++# CONFIG_SPI_CADENCE is not set
++# CONFIG_SPI_ROCKCHIP is not set
++# CONFIG_SPI_XILINX is not set
++
++# CONFIG_BATTERY_SBS is not set
++# CONFIG_BATTERY_BQ27XXX is not set
++# CONFIG_BATTERY_MAX17040 is not set
++# CONFIG_BATTERY_MAX17042 is not set
++# CONFIG_CHARGER_GPIO is not set
++# CONFIG_CHARGER_MAX14577 is not set
++# CONFIG_CHARGER_MAX77693 is not set
++# CONFIG_CHARGER_MAX8997 is not set
++# CONFIG_CHARGER_MAX8998 is not set
++
++#
++# Native drivers
++#
++# CONFIG_SENSORS_ASPEED is not set
++# CONFIG_SENSORS_LM90 is not set
++# CONFIG_SENSORS_LM95245 is not set
++# CONFIG_SENSORS_NTC_THERMISTOR is not set
++# CONFIG_SENSORS_PWM_FAN is not set
++# CONFIG_SENSORS_INA2XX is not set
++
++#
++# Watchdog Device Drivers
++#
++# CONFIG_XILINX_WATCHDOG is not set
++# CONFIG_DW_WATCHDOG is not set
++
++#
++# Multifunction device drivers
++#
++# CONFIG_MFD_ACT8945A is not set
++# CONFIG_MFD_AS3711 is not set
++# CONFIG_MFD_AS3722 is not set
++# CONFIG_MFD_ATMEL_FLEXCOM is not set
++# CONFIG_MFD_ATMEL_HLCDC is not set
++# CONFIG_MFD_BCM590XX is not set
++# CONFIG_MFD_AXP20X_I2C is not set
++# CONFIG_MFD_CROS_EC is not set
++# CONFIG_MFD_DA9063 is not set
++# CONFIG_MFD_MAX14577 is not set
++# CONFIG_MFD_MAX77686 is not set
++# CONFIG_MFD_MAX77693 is not set
++# CONFIG_MFD_MAX8907 is not set
++# CONFIG_MFD_MAX8997 is not set
++# CONFIG_MFD_MAX8998 is not set
++# CONFIG_MFD_CPCAP is not set
++# CONFIG_MFD_PM8XXX is not set
++# CONFIG_MFD_RK808 is not set
++# CONFIG_MFD_RN5T618 is not set
++# CONFIG_MFD_SEC_CORE is not set
++# CONFIG_MFD_PALMAS is not set
++# CONFIG_MFD_TPS65090 is not set
++# CONFIG_MFD_TPS65217 is not set
++# CONFIG_MFD_TPS65218 is not set
++# CONFIG_MFD_TPS6586X is not set
++# CONFIG_MFD_TPS65910 is not set
++
++# CONFIG_REGULATOR_ACT8865 is not set
++# CONFIG_REGULATOR_ANATOP is not set
++# CONFIG_REGULATOR_DA9210 is not set
++# CONFIG_REGULATOR_FAN53555 is not set
++# CONFIG_REGULATOR_LP872X is not set
++# CONFIG_REGULATOR_MAX8952 is not set
++# CONFIG_REGULATOR_MAX8973 is not set
++# CONFIG_REGULATOR_TPS51632 is not set
++# CONFIG_REGULATOR_TPS62360 is not set
++# CONFIG_REGULATOR_TWL4030 is not set
++# CONFIG_REGULATOR_VEXPRESS is not set
++
++#
++# USB HDMI CEC adapters
++#
++# CONFIG_VIDEO_ASPEED is not set
++
++#
++# Video decoders
++#
++# CONFIG_VIDEO_ADV7180 is not set
++# CONFIG_VIDEO_ML86V7667 is not set
++
++#
++# Miscellaneous helper chips
++#
++# CONFIG_VIDEO_ST_MIPID02 is not set
++
++
++# CONFIG_DRM_EXYNOS is not set
++# CONFIG_DRM_ATMEL_HLCDC is not set
++# CONFIG_DRM_FSL_DCU is not set
++
++#
++# Display Panels
++#
++# CONFIG_DRM_PANEL_SAMSUNG_LD9040 is not set
++# CONFIG_DRM_PANEL_SAMSUNG_S6E8AA0 is not set
++
++#
++# Display Interface Bridges
++#
++# CONFIG_DRM_DUMB_VGA_DAC is not set
++# CONFIG_DRM_NXP_PTN3460 is not set
++# CONFIG_DRM_PARADE_PS8622 is not set
++# CONFIG_DRM_SII9234 is not set
++# CONFIG_DRM_STI is not set
++# CONFIG_DRM_MXSFB is not set
++# CONFIG_DRM_PL111 is not set
++# CONFIG_DRM_LIMA is not set
++# CONFIG_DRM_PANFROST is not set
++# CONFIG_DRM_ASPEED_GFX is not set
++# CONFIG_DRM_LEGACY is not set
++
++#
++# HD-Audio
++#
++# CONFIG_SND_ATMEL_SOC is not set
++
++#
++# Common SoC Audio options for Freescale CPUs:
++#
++# CONFIG_SND_SOC_FSL_SAI is not set
++
++#
++# CODEC drivers
++#
++# CONFIG_SND_SOC_AK4642 is not set
++# CONFIG_SND_SOC_CPCAP is not set
++# CONFIG_SND_SOC_SGTL5000 is not set
++# CONFIG_SND_SOC_STI_SAS is not set
++# CONFIG_SND_SOC_WM8978 is not set
++
++#
++# Special HID drivers
++#
++# CONFIG_HID_STEAM is not set
++
++#
++# USB Host Controller Drivers
++#
++# CONFIG_USB_R8A66597_HCD is not set
++
++#
++# USB Miscellaneous drivers
++#
++# CONFIG_USB_HSIC_USB3503 is not set
++
++#
++# USB Physical Layer drivers
++#
++# CONFIG_NOP_USB_XCEIV is not set
++# CONFIG_AM335X_CONTROL_USB is not set
++# CONFIG_AM335X_PHY_USB is not set
++# CONFIG_USB_ISP1301 is not set
++
++#
++# I2C RTC drivers
++#
++# CONFIG_RTC_DRV_AS3722 is not set
++# CONFIG_RTC_DRV_DS1307 is not set
++# CONFIG_RTC_DRV_HYM8563 is not set
++# CONFIG_RTC_DRV_MAX8907 is not set
++# CONFIG_RTC_DRV_MAX8998 is not set
++# CONFIG_RTC_DRV_MAX8997 is not set
++# CONFIG_RTC_DRV_MAX77686 is not set
++# CONFIG_RTC_DRV_RK808 is not set
++# CONFIG_RTC_DRV_RS5C372 is not set
++# CONFIG_RTC_DRV_PCF85363 is not set
++# CONFIG_RTC_DRV_BQ32K is not set
++# CONFIG_RTC_DRV_TWL4030 is not set
++# CONFIG_RTC_DRV_S35390A is not set
++# CONFIG_RTC_DRV_RX8581 is not set
++# CONFIG_RTC_DRV_EM3027 is not set
++# CONFIG_RTC_DRV_S5M is not set
++
++#
++# Common Clock Framework
++#
++# CONFIG_CLK_QORIQ is not set
++
++#
++# Generic IOMMU Pagetable Support
++#
++# CONFIG_IOMMU_IO_PGTABLE_LPAE is not set
++
++#
++# Digital gyroscope sensors
++#
++# CONFIG_MPU3050_I2C is not set
++
++#
++# Light sensors
++#
++# CONFIG_CM36651 is not set
++# CONFIG_SENSORS_ISL29018 is not set
++# CONFIG_SENSORS_ISL29028 is not set
++
++#
++# Magnetometer sensors
++#
++# CONFIG_AK8975 is not set
++
++#
++# Temperature sensors
++#
++# CONFIG_PWM_ATMEL_HLCDC_PWM is not set
++# CONFIG_PWM_FSL_FTM is not set
++
++#
++# PHY Subsystem
++#
++# CONFIG_PHY_CPCAP_USB is not set
++# CONFIG_PHY_SAMSUNG_USB2 is not set
+diff --git a/arch/arm/configs/fragment-02-multiv7_addons.config b/arch/arm/configs/fragment-02-multiv7_addons.config
+index 5fd995006583..bc30f864d4fa 100644
+--- a/arch/arm/configs/fragment-02-multiv7_addons.config
++++ b/arch/arm/configs/fragment-02-multiv7_addons.config
+@@ -360,7 +360,6 @@ CONFIG_STM32_IPCC=y
+ #
+ CONFIG_REMOTEPROC=y
+ CONFIG_STM32_RPROC=y
+-CONFIG_RPMSG_VIRTIO=y
+ 
+ #
+ # RPMSG_TTY
+-- 
+2.17.1
+

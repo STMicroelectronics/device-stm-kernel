@@ -1,0 +1,25 @@
+From 28f6a462da2caa776541c658df5234dbf1e98f15 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Wed, 5 Aug 2020 18:15:17 +0200
+Subject: [PATCH 26/31] ARM-stm32mp1-r2-NET add-on for Android
+
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-stm32.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-stm32.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-stm32.c
+index f67842bfcd5d..2aa022b954a9 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-stm32.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-stm32.c
+@@ -303,7 +303,7 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
+ 			       struct device *dev)
+ {
+ 	struct device_node *np = dev->of_node;
+-	int err;
++	int err = 0;
+ 
+ 	/* Gigabit Ethernet 125MHz clock selection. */
+ 	dwmac->eth_clk_sel_reg = of_property_read_bool(np, "st,eth-clk-sel");
+-- 
+2.17.1
+

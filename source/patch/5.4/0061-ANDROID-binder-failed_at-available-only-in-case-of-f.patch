@@ -1,0 +1,42 @@
+From 9b0bd1db890eab2ed8839909f6d00ec25073b448 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Thu, 2 Jul 2020 14:11:43 +0200
+Subject: [PATCH 29/31] ANDROID: binder: failed_at available only in case of
+ failure
+
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+---
+ drivers/android/binder.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+index aa5ffe9bf509..23594d40d37a 100644
+--- a/drivers/android/binder.c
++++ b/drivers/android/binder.c
+@@ -2420,11 +2420,18 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
+ 	int debug_id = buffer->debug_id;
+ 	binder_size_t off_start_offset, buffer_offset, off_end_offset;
+ 
+-	binder_debug(BINDER_DEBUG_TRANSACTION,
+-		     "%d buffer release %d, size %zd-%zd, failed at %llx\n",
+-		     proc->pid, buffer->debug_id,
+-		     buffer->data_size, buffer->offsets_size,
+-		     (unsigned long long)failed_at);
++	if (is_failure) {
++		binder_debug(BINDER_DEBUG_TRANSACTION,
++				"%d buffer release %d, size %zd-%zd, failed at %llx\n",
++				proc->pid, buffer->debug_id,
++				buffer->data_size, buffer->offsets_size,
++				(unsigned long long)failed_at);
++	} else {
++		binder_debug(BINDER_DEBUG_TRANSACTION,
++				"%d buffer release %d, size %zd-%zd\n",
++				proc->pid, buffer->debug_id,
++				buffer->data_size, buffer->offsets_size);
++	}
+ 
+ 	if (buffer->target_node)
+ 		binder_dec_node(buffer->target_node, 1, 0);
+-- 
+2.17.1
+

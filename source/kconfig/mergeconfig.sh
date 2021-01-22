@@ -29,4 +29,6 @@ unset "array[3]"
 
 cd $KERNEL_PATH
 
-ARCH=$TARGET_ARCH CROSS_COMPILE=$TARGET_CROSS_COMPILE ./scripts/kconfig/merge_config.sh -O $OUTPUT ${array[*]}
+# Merge .config with fragments
+# Force CONFIG_LSM default config (depends on choice which is not well managed in merge script)
+ARCH=$TARGET_ARCH CROSS_COMPILE=$TARGET_CROSS_COMPILE ./scripts/kconfig/merge_config.sh -d CONFIG_LSM -C arm-linux-gnueabi- -O $OUTPUT ${array[*]}

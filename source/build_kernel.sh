@@ -19,15 +19,15 @@
 #######################################
 # Constants
 #######################################
-SCRIPT_VERSION="1.1"
+SCRIPT_VERSION="1.4"
 
 SOC_FAMILY="stm32mp1"
 SOC_NAME="stm32mp15"
-SOC_VERSION="stm32mp157c"
+SOC_VERSIONS=( "stm32mp157c" "stm32mp157f" )
 
-KERNEL_VERSION=4.19
+KERNEL_VERSION=5.4
 KERNEL_ARCH=arm
-KERNEL_TOOLCHAIN=gcc-arm-8.2-2019.01-x86_64-arm-eabi
+GCC_TOOLCHAIN=gcc-arm-9.2-2019.12-x86_64-arm-none-eabi
 
 if [ -n "${ANDROID_BUILD_TOP+1}" ]; then
   TOP_PATH=${ANDROID_BUILD_TOP}
@@ -50,8 +50,15 @@ KERNEL_ANDROID_BASE_CONFIG=android-base.config
 KERNEL_ANDROID_RECOMMENDED_CONFIG=android-recommended.config
 KERNEL_ANDROID_SOC_CONFIG=android-soc.config
 
-KERNEL_CROSS_COMPILE_PATH=${TOP_PATH}/prebuilts/gcc/linux-x86/arm/${KERNEL_TOOLCHAIN}/bin
-KERNEL_CROSS_COMPILE=arm-eabi-
+# debug used for userdebug/eng build, user used for user build
+KERNEL_ANDROID_DEBUG_CONFIG=android-debug.config
+KERNEL_ANDROID_USER_CONFIG=android-user.config
+
+GCC_CROSS_COMPILE_PATH=${TOP_PATH}/prebuilts/gcc/linux-x86/arm/${GCC_TOOLCHAIN}/bin
+GCC_CROSS_COMPILE=arm-eabi-
+
+CLANG_CROSS_COMPILE=arm-linux-androidkernel-
+CLANG_CC_OPTIONS="CLANG_TRIPLE=arm-linux-gnueabi- CC=clang"
 
 KERNEL_OUT=${TOP_PATH}/out-bsp/${SOC_FAMILY}/KERNEL_OBJ
 
@@ -64,9 +71,6 @@ BOARD_FLAVOUR_LIST=( "ev1" )
 #######################################
 nb_states=0
 
-cmd_cnt=0
-cmd_req=
-
 do_install=0
 do_onlymenuconfig=0
 do_onlydefaultconfig=0
@@ -74,13 +78,22 @@ do_onlymrproper=0
 do_onlydtb=0
 do_onlygpu=0
 do_onlymodules=0
+do_onlymodulesinstall=0
 do_onlyvmlinux=0
 do_full=0
-do_strip=1
+do_gdb=0
+do_debug=0
+force_defaultconfig=0
+
+# use clang by default
+use_gcc=0
+kernel_cross_compile=${CLANG_CROSS_COMPILE}
+kernel_cc_options=${CLANG_CC_OPTIONS}
 
 execute_more=1
 
 kernel_src=
+modulesinstall_param=
 
 kernel_defconfig=
 kernel_cleanup_fragment=
@@ -133,17 +146,21 @@ usage()
   echo "  This script allows building the Linux kernel source"
   empty_line
   echo "Options:"
-  echo "  -h/--help: print this message"
+  echo "  -h/--help: print this message and exit"
+  echo "  -v/--version: print script version and exit"
   echo "  -i/--install: update prebuilt images"
-  echo "  -v/--version: get script version"
-  echo "  -ns/--nostrip: do not strip generated modules (default: strip enabled = remove unneeded symbols)"
-  echo "  --verbose <level>: enable verbosity (1 or 2 depending on level of verbosity required)"
+  echo "  -d <val>/--debug=<val>: if <val>=1; integrate debug kernel configuration (default for userdebug or eng build variant)"
+  echo "                          if <val>=0; remove debug kernel configuration (default for user build variant)"
+  echo "  -g/--gdb: generate vmlinux (kernel incl. symbols) and don't strip generated modules (keep symbols)"
+  echo "  --gcc: use gcc toolchain instead of clang (bspsetup shall be executed before)"
+  echo "  --verbose=<level>: enable verbosity (1 or 2 depending on level of verbosity required)"
   echo "Command: only one command at a time supported"
   echo "  dtb: build only device-tree binaries"
   echo "  gpu: build only gpu module (kernel is build if not already performed)"
   echo "  defaultconfig: build only .config based on default defconfig files and fragments"
   echo "  menuconfig: display standard Linux kernel menuconfig interface"
   echo "  modules: build only kernel modules binaries (kernel is build if not already performed)"
+  echo "  modules_install: build kernel modules binaries (kernel is built if not already performed) and install them (also update the module.dep file)"
   echo "  mrproper: execute make mrproper on targeted kernel"
   echo "  vmlinux: build only kernel vmlinux binary"
   empty_line
@@ -339,11 +356,10 @@ extract_buildconfig()
 #   I kernel_defconfig
 #   I kernel_cleanup_fragment
 #   I kernel_addon_fragment
+#   I kernel_cross_compile
 #   I KERNEL_VERSION
 #   I KERNEL_OUT
 #   I KERNEL_ARCH
-#   I KERNEL_CROSS_COMPILE_PATH
-#   I KERNEL_CROSS_COMPILE
 #   I KERNEL_ANDROID_BASE_CONFIG
 #   I KERNEL_ANDROID_RECOMMENDED_CONFIG
 # Arguments:
@@ -355,7 +371,7 @@ generate_config()
 {
   local l_config_path
 
-  l_config_path=${kernel_src}/arch/${KERNEL_ARCH}/configs/
+  l_config_path=${kernel_src}/arch/${KERNEL_ARCH}/configs
 
   # Generate .config
   generate_kernel ${kernel_defconfig}
@@ -368,15 +384,52 @@ generate_config()
   # Generate .config.required (Android required configuration = base + recommended)
   \cat ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_BASE_CONFIG} ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_RECOMMENDED_CONFIG} > ${KERNEL_OUT}/.config.required
 
+  if [[ ${do_debug} == 1 ]]; then
+    \cat ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_SOC_CONFIG} ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_DEBUG_CONFIG} > ${KERNEL_OUT}/.config.soc
+  else
+    \cat ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_SOC_CONFIG} ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_USER_CONFIG} > ${KERNEL_OUT}/.config.soc
+  fi
+
   # Merge .config and .config.required with fragments and SoC configuration for Android
-  ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_CROSS_COMPILE_PATH}/${KERNEL_CROSS_COMPILE} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_cleanup_fragment} ${l_config_path}/${kernel_addon_fragment} ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_SOC_CONFIG} ${KERNEL_OUT}/.config.required > ${KERNEL_OUT}/mergeconfig.log 2>&1
+  ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${kernel_cross_compile} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_cleanup_fragment} ${l_config_path}/${kernel_addon_fragment} ${KERNEL_OUT}/.config.soc ${KERNEL_OUT}/.config.required > ${KERNEL_OUT}/mergeconfig.log 2>&1
   green "  mergeconfig logs added in ${KERNEL_OUT}/mergeconfig.log"
 
   # Generate the corresponding defconfig file as refrence
   state "Generate corresponding defconfig.default for ${SOC_FAMILY}"
   generate_kernel savedefconfig
   mv ${KERNEL_OUT}/defconfig ${KERNEL_OUT}/defconfig.default
-  
+
+  if [[ ${do_debug} == 1 ]]; then
+    echo "DEBUG ENABLED" > ${KERNEL_OUT}/build.config
+  else
+    echo "DEBUG DISABLED" > ${KERNEL_OUT}/build.config
+  fi
+}
+
+#######################################
+# Check last build config
+# Globals:
+#   I KERNEL_OUT
+#   I do_debug
+#   O force_defaultconfig
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+check_buildconfig()
+{
+  force_defaultconfig=0
+  if [[ -f $KERNEL_OUT/build.config ]]; then
+    build_config=`grep "DEBUG" $KERNEL_OUT/build.config`
+    if [[ ${build_config} =~ "ENABLED" ]] && [[ ${do_debug} == 0 ]]; then
+      force_defaultconfig=1
+    elif [[ ${build_config} =~ "DISABLED" ]] && [[ ${do_debug} == 1 ]]; then
+      force_defaultconfig=1
+    fi
+  else
+    force_defaultconfig=1
+  fi
 }
 
 #######################################
@@ -399,9 +452,9 @@ clean_kernel_out()
 #   I kernel_src
 #   I KERNEL_OUT
 #   I KERNEL_ARCH
-#   I KERNEL_CROSS_COMPILE_PATH
-#   I KERNEL_CROSS_COMPILE
 #   I BOARD_FLAVOUR_LIST
+#   I kernel_cross_compile
+#   I kernel_cc_options
 #   I dtc_flags
 #   I force
 # Arguments:
@@ -420,13 +473,17 @@ clean_kernel_out()
 #######################################
 generate_kernel()
 {
-  # Force alignment on page size for the geberated DTB files
-  for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
+  # Force alignment on page size for the generated DTB files
+  dtc_flags=""
+  for soc_version in "${SOC_VERSIONS[@]}"
   do
-    dtc_flags+="DTC_FLAGS_${SOC_VERSION}-${board_flavour}=-a4096 "
+    for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
+    do
+      dtc_flags+="DTC_FLAGS_${soc_version}-${board_flavour}=-a4096 "
+    done
   done
 
-  \make ${verbose} -j8 -C ${kernel_src} O=${KERNEL_OUT} ARCH="${KERNEL_ARCH}" CROSS_COMPILE=${KERNEL_CROSS_COMPILE_PATH}/${KERNEL_CROSS_COMPILE} ${force} ${dtc_flags} $1 &>${redirect_out}
+  \make ${verbose} -j8 -C ${kernel_src} O=${KERNEL_OUT} ${modulesinstall_param} ARCH="${KERNEL_ARCH}" ${kernel_cc_options} CROSS_COMPILE=${kernel_cross_compile} ${force} ${dtc_flags} $1 &>${redirect_out}
   if [ $? -ne 0 ]; then
     error "Not possible to generate the kernel image"
     popd >/dev/null 2>&1
@@ -441,8 +498,8 @@ generate_kernel()
 #   I kernel_gpu_src
 #   I KERNEL_OUT
 #   I KERNEL_ARCH
-#   I KERNEL_CROSS_COMPILE_PATH
-#   I KERNEL_CROSS_COMPILE
+#   I kernel_cross_compile
+#   I kernel_cc_options
 # Arguments:
 #   None
 # Returns:
@@ -455,7 +512,7 @@ generate_gpu_driver()
   \find ${KERNEL_OUT}/${kernel_gpu_name} -type l -exec rm {} +
   \cp -prs ${kernel_gpu_src}/* ${KERNEL_OUT}/${kernel_gpu_name}
   # Build GPU driver
-  \make ${verbose} -C ${KERNEL_OUT}/${kernel_gpu_name} O=${KERNEL_OUT} KERNEL_DIR=${KERNEL_OUT} CROSS_COMPILE=${KERNEL_CROSS_COMPILE_PATH}/${KERNEL_CROSS_COMPILE} ARCH_TYPE=${KERNEL_ARCH} all SOC_PLATFORM=st-st &>${redirect_out}
+  \make ${verbose} -C ${KERNEL_OUT}/${kernel_gpu_name} O=${KERNEL_OUT} KERNEL_DIR=${KERNEL_OUT} ${kernel_cc_options} CROSS_COMPILE=${kernel_cross_compile} ARCH_TYPE=${KERNEL_ARCH} all SOC_PLATFORM=st-st &>${redirect_out} VIVANTE_ENABLE_DRM=1
   if [ $? -ne 0 ]; then
     error "Not possible to generate gpu driver module"
     popd >/dev/null 2>&1
@@ -477,100 +534,159 @@ if [[ "$0" != "$BASH_SOURCE" ]]; then
   return
 fi
 
-# Check the current usage
-if [ $# -gt 4 ]
-then
-  usage
-  popd >/dev/null 2>&1
-  exit 0
+# force debug option by default if userdebug or eng build
+if [ -n "${TARGET_BUILD_VARIANT+1}" ]; then
+  if [ "${TARGET_BUILD_VARIANT}" == "user" ]; then
+    do_debug=0
+  else
+    # echo "debug (-d) option forced for ${TARGET_BUILD_VARIANT} build variant"
+    do_debug=1
+  fi
 fi
 
-while test "$1" != ""; do
-  arg=$1
-  case $arg in
-    "-h"|"--help" )
-      usage
-      popd >/dev/null 2>&1
-      exit 0
-      ;;
+# check the options
+while getopts "hvid:g-:" option; do
+    case "${option}" in
+        -)
+            # Treat long options
+            case "${OPTARG}" in
+                help)
+                    usage
+                    popd >/dev/null 2>&1
+                    exit 0
+                    ;;
+                version)
+                    echo "`basename $0` version ${SCRIPT_VERSION}"
+                    \popd >/dev/null 2>&1
+                    exit 0
+                    ;;
+                verbose=*)
+                    verbose_level=${OPTARG#*=}
+                    redirect_out="/dev/stdout"
+                    if ! in_list "0 1 2" "${verbose_level}"; then
+                        error "unknown verbose level ${verbose_level}"
+                        \popd >/dev/null 2>&1
+                        exit 1
+                    fi
+                    if [ ${verbose_level} == 2 ];then
+                        verbose=
+                    fi
+                    ;;
+                gcc)
+                    use_gcc=1
+                    kernel_cross_compile=${GCC_CROSS_COMPILE_PATH}/${GCC_CROSS_COMPILE}
+                    kernel_cc_options=""
+                    ;;
+                install)
+                    if [[ ${do_install} == 0 ]]; then
+                      nb_states=$((nb_states+1))
+                    fi
+                    do_install=1
+                    ;;
+                debug=*)
+                    debug_level=${OPTARG#*=}
+                    if [ ${debug_level} == 0 ];then
+                      do_debug=0
+                    else
+                      do_debug=1
+                    fi
+                    ;;
+                gdb)
+                    do_gdb=1
+                    ;;
+                *)
+                    usage
+                    popd >/dev/null 2>&1
+                    exit 1
+                    ;;
+            esac;;
+        # Treat short options
+        h)
+            usage
+            popd >/dev/null 2>&1
+            exit 0
+            ;;
+        v)
+            echo "`basename $0` version ${SCRIPT_VERSION}"
+            \popd >/dev/null 2>&1
+            exit 0
+            ;;
+        i)
+            if [[ ${do_install} == 0 ]]; then
+                nb_states=$((nb_states+1))
+            fi
+            do_install=1
+            ;;
+        d)
+            if [[ ${OPTARG} == 0 ]]; then
+              do_debug=0
+            else
+              do_debug=1
+            fi
+            ;;
+        g)
+            do_gdb=1
+            ;;
+        *)
+            usage
+            popd >/dev/null 2>&1
+            exit 1
+            ;;
+    esac
+done
 
-    "-v"|"--version" )
-      echo "`basename $0` version ${SCRIPT_VERSION}"
-      \popd >/dev/null 2>&1
-      exit 0
-      ;;
+shift $((OPTIND-1))
 
-    "--verbose" )
-      verbose_level=${2}
-      redirect_out="/dev/stdout"
-      if ! in_list "0 1 2" "${verbose_level}"; then
-        error "unknown verbose level ${verbose_level}"
-        \popd >/dev/null 2>&1
-        exit 1
-      fi
-      if [ ${verbose_level} == 2 ];then
-        verbose=
-      fi
-      shift
-      ;;
+if [ $# -gt 1 ]; then
+  error "Only one command resquest support. Current commands are : $*"
+  popd >/dev/null 2>&1
+  exit 1
+fi
 
-    "-i"|"--install" )
-      nb_states=$((nb_states+1))
-      do_install=1
-      ;;
-
-    "-ns"|"--nostrip" )
-      do_strip=0
-      ;;
-
+# check the options
+if [ $# -eq 1 ]; then
+  case $1 in
     "dtb" )
-      nb_states=$((nb_states+3))
+      nb_states=$((nb_states+5))
       do_onlydtb=1
-      cmd_cnt=$((cmd_cnt+1))
-      cmd_req+="${arg} "
       ;;
 
     "gpu" )
       nb_states=$((nb_states+5))
       do_onlygpu=1
-      cmd_cnt=$((cmd_cnt+1))
-      cmd_req+="${arg} "
       ;;
 
     "defaultconfig" )
       nb_states=$((nb_states+2))
       do_onlydefaultconfig=1
       force="-B"
-      cmd_cnt=$((cmd_cnt+1))
-      cmd_req+="${arg} "
       ;;
 
     "menuconfig" )
       nb_states=$((nb_states+3))
       do_onlymenuconfig=1
-      cmd_cnt=$((cmd_cnt+1))
-      cmd_req+="${arg} "
       ;;
 
     "modules" )
       nb_states=$((nb_states+5))
       do_onlymodules=1
-      cmd_cnt=$((cmd_cnt+1))
-      cmd_req+="${arg} "
+      ;;
+
+    "modules_install" )
+      nb_states=$((nb_states+6))
+      do_onlymodules=1
+      do_onlymodulesinstall=1
+      modulesinstall_param="INSTALL_MOD_PATH=${KERNEL_OUT}"
       ;;
 
     "mrproper" )
       nb_states=$((nb_states+1))
       do_onlymrproper=1
-      cmd_cnt=$((cmd_cnt+1))
-      cmd_req+="${arg} "
       ;;
 
     "vmlinux" )
       nb_states=$((nb_states+4))
       do_onlyvmlinux=1
-      cmd_cnt=$((cmd_cnt+1))
-      cmd_req+="${arg} "
       ;;
 
     ** )
@@ -579,18 +695,8 @@ while test "$1" != ""; do
       exit 0
       ;;
   esac
-  shift
-done
-
-# Check that only one command is requested
-if [[ ${cmd_cnt} > 1 ]]; then
-  error "Only one command resquest support. Current commands are : ${cmd_req}!"
-  popd >/dev/null 2>&1
-  exit 1
-fi
-
-# In case of full compilation is requested, set nb_states
-if [[ ${cmd_cnt} == 0 ]]; then
+else
+  # case all
   nb_states=7
   if [[ ${do_install} == 1 ]]; then
     nb_states=$((nb_states+1))
@@ -605,8 +711,8 @@ if [[ ! -f ${KERNEL_SOURCE_PATH}/${KERNEL_BUILDCONFIG} ]]; then
   exit 1
 fi
 
-if [[ ! -d ${KERNEL_CROSS_COMPILE_PATH} ]]; then
-  error "Required toolchain ${KERNEL_TOOLCHAIN} not available, please execute bspsetup"
+if [[ use_gcc -eq 1 ]] && [[ ! -d "${GCC_CROSS_COMPILE_PATH}" ]]; then
+  error "Required toolchain ${GCC_TOOLCHAIN} not available, please execute bspsetup"
   popd >/dev/null 2>&1
   exit 1
 fi
@@ -621,8 +727,10 @@ if [[ ! -f ${kernel_src}/Makefile ]]; then
   exit 1
 fi
 
-# Create Kernel out directory
-\mkdir -p ${KERNEL_OUT}
+# Create Kernel out directory if needed
+if [ ! -d "${KERNEL_OUT}" ]; then
+  \mkdir -p ${KERNEL_OUT}
+fi
 
 # Execute mrproper command if requested, then exit
 if [[ ${do_onlymrproper} == 1 ]]; then
@@ -634,8 +742,11 @@ fi
 
 # Adapt value of nb_states following curent conditions
 # Remove 2 states when .config is present and do not request to regenerate it
-if [[ -f ${KERNEL_OUT}/.config ]] && [[ ${do_onlydefaultconfig} == 0 ]]; then
-  nb_states=$((nb_states-2))
+if [[ -f ${KERNEL_OUT}/.config ]]; then
+  check_buildconfig
+  if [[ ${do_onlydefaultconfig} == 0 ]] && [[ ${force_defaultconfig} == 0 ]]; then
+    nb_states=$((nb_states-2))
+  fi
 fi
 # Remove 2 states when zImage is present and do not request to regenerate it
 if [[ -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/zImage ]] && [[ ${do_full} == 0 ]] && [[ ${do_onlyvmlinux} == 0 ]] && [[ ${do_onlymenuconfig} == 0 ]] && [[ ${do_onlydefaultconfig} == 0 ]]; then
@@ -643,10 +754,10 @@ if [[ -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/zImage ]] && [[ ${do_full} == 0 
 fi
 
 # Generate .config if needed or if requested
-if [[ ! -f ${KERNEL_OUT}/.config ]] || [[ ${do_onlydefaultconfig} == 1 ]]; then
+if [[ ! -f ${KERNEL_OUT}/.config ]] || [[ ${do_onlydefaultconfig} == 1 ]] || [[ ${force_defaultconfig} == 1 ]]; then
   state "Generate .config for ${SOC_FAMILY}"
   generate_config
-  
+
   if [[ ${do_onlydefaultconfig} == 1 ]]; then
     popd >/dev/null 2>&1
     exit 0
@@ -700,6 +811,10 @@ do_execute || {
   if [[ ${do_onlygpu} == 0 ]]; then
     state "Generate modules for ${SOC_FAMILY}"
     generate_kernel modules
+    if [[ ${do_onlymodulesinstall} == 1 ]]; then
+      state "Install modules for ${SOC_FAMILY}"
+      generate_kernel modules_install
+    fi
     if [[ ${do_onlymodules} == 1 ]]; then
       execute_more=0
     fi
@@ -718,22 +833,44 @@ do_execute || {
 # Copy generated images in kernel prebuilt directory if requested
 if [[ ${do_install} == 1 ]]; then
 
+  # create prebuilt directories if required
+  if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/" ]; then
+    \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/
+  fi
+  if  [ ! -d "${KERNEL_PREBUILT_PATH}/modules/" ]; then
+    \mkdir -p ${KERNEL_PREBUILT_PATH}/modules/
+  fi
+
   state "Update prebuilt images"
   if [[ ${do_onlygpu} == 0 ]]; then
-    for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
+    # clean prebuilt directories
+    \rm -f ${KERNEL_PREBUILT_PATH}/modules/*
+    \rm -f ${KERNEL_PREBUILT_PATH}/kernel-*
+    \rm -f ${KERNEL_PREBUILT_PATH}/vmlinux-*
+
+    for soc_version in "${SOC_VERSIONS[@]}"
     do
-      \find ${KERNEL_OUT}/ -name "${SOC_VERSION}-${board_flavour}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/
+      for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
+      do
+        if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}" ]; then
+          \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+        fi
+        \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}/*
+        \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+      done
     done
     \find ${KERNEL_OUT}/ -name "*.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
-    if [[ ${do_strip} == 1 ]]; then
-      ${KERNEL_CROSS_COMPILE_PATH}/${KERNEL_CROSS_COMPILE}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/*.ko
+    if [[ ${do_gdb} == 0 ]]; then
+      ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/*.ko
     fi
-    \find ${KERNEL_OUT}/ -name "zImage" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/kernel-${SOC_VERSION}
-    \cp ${KERNEL_OUT}/vmlinux ${KERNEL_PREBUILT_PATH}/vmlinux-${SOC_VERSION}
+    \find ${KERNEL_OUT}/ -name "zImage" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/kernel-${SOC_FAMILY}
+    if [[ ${do_gdb} == 1 ]]; then
+      \cp ${KERNEL_OUT}/vmlinux ${KERNEL_PREBUILT_PATH}/vmlinux-${SOC_FAMILY}
+    fi
   else
     \find ${KERNEL_OUT}/ -name "galcore.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
-    if [[ ${do_strip} == 1 ]]; then
-      ${KERNEL_CROSS_COMPILE_PATH}/${KERNEL_CROSS_COMPILE}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/galcore.ko
+    if [[ ${do_gdb} == 0 ]]; then
+      ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/galcore.ko
     fi
   fi
 

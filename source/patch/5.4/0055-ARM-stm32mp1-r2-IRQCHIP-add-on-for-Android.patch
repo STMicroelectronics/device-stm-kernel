@@ -1,0 +1,216 @@
+From 3d8f12b01a42b020a9c54c8b96b843f12a5c7223 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Wed, 5 Aug 2020 18:16:13 +0200
+Subject: [PATCH 27/31] ARM-stm32mp1-r2-IRQCHIP add-on for Android
+
+---
+ arch/arm/boot/dts/stm32mp151.dtsi |  21 +++---
+ drivers/irqchip/irq-stm32-exti.c  | 103 ++++++++++++++++++------------
+ 2 files changed, 72 insertions(+), 52 deletions(-)
+
+diff --git a/arch/arm/boot/dts/stm32mp151.dtsi b/arch/arm/boot/dts/stm32mp151.dtsi
+index f0211917bb68..02c60fb39ea3 100644
+--- a/arch/arm/boot/dts/stm32mp151.dtsi
++++ b/arch/arm/boot/dts/stm32mp151.dtsi
+@@ -1331,17 +1331,18 @@
+ 			#interrupt-cells = <2>;
+ 			reg = <0x5000d000 0x400>;
+ 			hwlocks = <&hsem 1 1>;
++		};
+ 
+-			/* exti_pwr is an extra interrupt controller used for
+-			 * EXTI 55 to 60. It's mapped on pwr interrupt
+-			 * controller.
+-			 */
+-			exti_pwr: exti-pwr {
+-				interrupt-controller;
+-				#interrupt-cells = <2>;
+-				interrupt-parent = <&pwr_irq>;
+-				st,irq-number = <6>;
+-			};
++		/* exti_pwr is an extra interrupt controller used for
++		 * EXTI 55 to 60. It's mapped on pwr interrupt
++		 * controller.
++		 */
++		exti_pwr: exti-pwr {
++			compatible = "st,stm32mp1-sub-exti";
++			interrupt-controller;
++			#interrupt-cells = <2>;
++			interrupt-parent = <&pwr_irq>;
++			st,irq-number = <6>;
+ 		};
+ 
+ 		syscfg: syscon@50020000 {
+diff --git a/drivers/irqchip/irq-stm32-exti.c b/drivers/irqchip/irq-stm32-exti.c
+index 0337c71d7b62..52980c455b22 100644
+--- a/drivers/irqchip/irq-stm32-exti.c
++++ b/drivers/irqchip/irq-stm32-exti.c
+@@ -230,11 +230,16 @@ stm32_desc_irq *stm32_exti_get_desc(const struct stm32_exti_drv_data *drv_data,
+ 	const struct stm32_desc_irq *desc = NULL;
+ 	int i;
+ 
++	if (!drv_data)
++		return NULL;
++
+ 	if (!drv_data->desc_irqs)
+ 		return NULL;
+ 
+ 	for (i = 0; i < drv_data->irq_nr; i++) {
+ 		desc = &drv_data->desc_irqs[i];
++		if (!desc)
++			continue;
+ 		if (desc->exti == hwirq)
+ 			break;
+ 	}
+@@ -684,10 +689,9 @@ static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
+ 	bank  = hwirq / IRQS_PER_BANK;
+ 	chip_data = &host_data->chips_data[bank];
+ 
+-
+ 	desc = stm32_exti_get_desc(host_data->drv_data, hwirq);
+ 	if (!desc)
+-		return -EINVAL;
++		return -EPROBE_DEFER;
+ 
+ 	irq_domain_set_hwirq_and_chip(dm, virq, hwirq, desc->chip,
+ 				      chip_data);
+@@ -704,16 +708,14 @@ static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
+ 
+ 		return irq_domain_alloc_irqs_parent(dm, virq, 1, &p_fwspec);
+ 	} else {
+-		if (desc->irq_parent) {
+-			p_fwspec.fwnode = dm->parent->fwnode;
+-			p_fwspec.param_count = 3;
+-			p_fwspec.param[0] = GIC_SPI;
+-			p_fwspec.param[1] = desc->irq_parent;
+-			p_fwspec.param[2] = IRQ_TYPE_LEVEL_HIGH;
+-
+-			return irq_domain_alloc_irqs_parent(dm, virq, 1,
+-							    &p_fwspec);
+-		}
++		p_fwspec.fwnode = dm->parent->fwnode;
++		p_fwspec.param_count = 3;
++		p_fwspec.param[0] = GIC_SPI;
++		p_fwspec.param[1] = desc->irq_parent;
++		p_fwspec.param[2] = IRQ_TYPE_LEVEL_HIGH;
++
++		return irq_domain_alloc_irqs_parent(dm, virq, 1,
++						    &p_fwspec);
+ 	}
+ 
+ 	return 0;
+@@ -874,6 +876,41 @@ static int stm32_exti_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
++static int stm32_sub_exti_probe(struct platform_device *pdev, struct device_node *np,
++				struct stm32_exti_host_data *host_data)
++{
++	struct device *dev = &pdev->dev;
++	struct irq_domain *parent_domain, *domain;
++	u32 nirqs;
++	int ret;
++
++	parent_domain = irq_find_host(of_irq_find_parent(np));
++	if (!parent_domain) {
++		dev_err(dev, "interrupt-parent not found\n");
++		return -EINVAL;
++	}
++
++	ret = of_property_read_u32(np, "st,irq-number", &nirqs);
++	if (ret || !nirqs) {
++		dev_err(dev, "Missing or bad irq-number property\n");
++		return -EINVAL;
++	}
++
++	domain = irq_domain_add_hierarchy(parent_domain, 0, nirqs,
++					  np,
++					  &stm32_exti_h_domain_ops,
++					  host_data);
++	if (!domain) {
++		dev_err(dev, "Could not register exti domain\n");
++		return -ENOMEM;
++	}
++
++	ret = devm_add_action_or_reset(dev, stm32_exti_remove_irq,
++				       domain);
++	return ret;
++
++}
++
+ static int stm32_exti_probe(struct platform_device *pdev)
+ {
+ 	int ret, i;
+@@ -883,7 +920,16 @@ static int stm32_exti_probe(struct platform_device *pdev)
+ 	struct stm32_exti_host_data *host_data;
+ 	const struct stm32_exti_drv_data *drv_data;
+ 	struct resource *res;
+-	u32 nirqs;
++
++	/* initialize host_data */
++	drv_data = of_device_get_match_data(dev);
++	if (!drv_data) {
++		if (stm32_host_data == NULL)
++			/* sub exti controller must be probe after main one */
++			return -EPROBE_DEFER;
++		else
++			return stm32_sub_exti_probe(pdev, pdev->dev.of_node, stm32_host_data);
++	}
+ 
+ 	host_data = devm_kzalloc(dev, sizeof(*host_data), GFP_KERNEL);
+ 	if (!host_data)
+@@ -907,12 +953,6 @@ static int stm32_exti_probe(struct platform_device *pdev)
+ 		return ret;
+ 	}
+ 
+-	/* initialize host_data */
+-	drv_data = of_device_get_match_data(dev);
+-	if (!drv_data) {
+-		dev_err(dev, "no of match data\n");
+-		return -ENODEV;
+-	}
+ 	host_data->drv_data = drv_data;
+ 
+ 	host_data->chips_data = devm_kcalloc(dev, drv_data->bank_nr,
+@@ -952,29 +992,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
+ 		return ret;
+ 
+ 	for_each_child_of_node(np, child) {
+-		parent_domain = irq_find_host(of_irq_find_parent(child));
+-		if (!parent_domain) {
+-			dev_err(dev, "child interrupt-parent not found\n");
+-			return -EINVAL;
+-		}
+-
+-		ret = of_property_read_u32(child, "st,irq-number", &nirqs);
+-		if (ret || !nirqs) {
+-			dev_err(dev, "Missing or bad irq-number property\n");
+-			return -EINVAL;
+-		}
+-
+-		domain = irq_domain_add_hierarchy(parent_domain, 0, nirqs,
+-						  child,
+-						  &stm32_exti_h_domain_ops,
+-						  host_data);
+-		if (!domain) {
+-			dev_err(dev, "Could not register exti domain\n");
+-			return -ENOMEM;
+-		}
+-
+-		ret = devm_add_action_or_reset(dev, stm32_exti_remove_irq,
+-					       domain);
++		ret = stm32_sub_exti_probe(pdev, child, host_data);
+ 		if (ret)
+ 			return ret;
+ 	}
+@@ -987,6 +1005,7 @@ static int stm32_exti_probe(struct platform_device *pdev)
+ /* platform driver only for MP1 */
+ static const struct of_device_id stm32_exti_ids[] = {
+ 	{ .compatible = "st,stm32mp1-exti", .data = &stm32mp1_drv_data},
++	{ .compatible = "st,stm32mp1-sub-exti"},
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(of, stm32_exti_ids);
+-- 
+2.17.1
+

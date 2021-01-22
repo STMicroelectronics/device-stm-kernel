@@ -1,0 +1,27 @@
+From 151d2a8ed279b05940dcc58cc45b5f42bb19a6b2 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Wed, 5 Aug 2020 18:17:20 +0200
+Subject: [PATCH 30/31] ANDROID: tty: increase maximum tty port name size to
+ avoid stack corruption
+
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+---
+ drivers/tty/serdev/serdev-ttyport.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/tty/serdev/serdev-ttyport.c b/drivers/tty/serdev/serdev-ttyport.c
+index 67bb0a0b730e..4c6519720235 100644
+--- a/drivers/tty/serdev/serdev-ttyport.c
++++ b/drivers/tty/serdev/serdev-ttyport.c
+@@ -301,7 +301,7 @@ struct device *serdev_tty_port_register(struct tty_port *port,
+ 	 * be ignored.
+ 	 */
+ 	if (parent->bus == &platform_bus_type) {
+-		char tty_port_name[7];
++		char tty_port_name[8];
+ 
+ 		sprintf(tty_port_name, "%s%d", drv->name, idx);
+ 		if (pdev_tty_port &&
+-- 
+2.17.1
+

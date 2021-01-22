@@ -1,0 +1,265 @@
+From fe7673fb7b2bcabe3c1929f73a3faa4ba8deda9c Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Fri, 17 Jul 2020 09:41:11 +0200
+Subject: [PATCH 28/31] ARM-stm32mp1-r2-DEVICETREE add-on for Android
+
+---
+ arch/arm/boot/dts/stm32mp151.dtsi      |  13 +--
+ arch/arm/boot/dts/stm32mp15xx-edx.dtsi |   5 +
+ arch/arm/boot/dts/stm32mp15xx-evx.dtsi | 126 +++++++++++++++++++++++--
+ 3 files changed, 127 insertions(+), 17 deletions(-)
+
+diff --git a/arch/arm/boot/dts/stm32mp151.dtsi b/arch/arm/boot/dts/stm32mp151.dtsi
+index 02c60fb39ea3..1e132f82351f 100644
+--- a/arch/arm/boot/dts/stm32mp151.dtsi
++++ b/arch/arm/boot/dts/stm32mp151.dtsi
+@@ -176,13 +176,6 @@
+ 		};
+ 	};
+ 
+-	reboot {
+-		compatible = "syscon-reboot";
+-		regmap = <&rcc>;
+-		offset = <0x404>;
+-		mask = <0x1>;
+-	};
+-
+ 	soc {
+ 		compatible = "simple-bus";
+ 		#address-cells = <1>;
+@@ -1221,9 +1214,9 @@
+ 			resets = <&rcc USBO_R>;
+ 			reset-names = "dwc2";
+ 			interrupts-extended = <&exti 44 IRQ_TYPE_LEVEL_HIGH>;
+-			g-rx-fifo-size = <512>;
++			g-rx-fifo-size = <256>;
+ 			g-np-tx-fifo-size = <32>;
+-			g-tx-fifo-size = <256 16 16 16 16 16 16 16>;
++			g-tx-fifo-size = <128 128 128 64 32 32 32 32>;
+ 			dr_mode = "otg";
+ 			usb33d-supply = <&usb33>;
+ 			power-domains = <&pd_core>;
+@@ -1818,7 +1811,7 @@
+ 				offset = <0x150>; /* reg20 */
+ 				mask = <0xff>;
+ 				mode-normal = <0>;
+-				mode-fastboot = <0x1>;
++				mode-bootloader = <0x1>;
+ 				mode-recovery = <0x2>;
+ 				mode-stm32cubeprogrammer = <0x3>;
+ 				mode-ums_mmc0 = <0x10>;
+diff --git a/arch/arm/boot/dts/stm32mp15xx-edx.dtsi b/arch/arm/boot/dts/stm32mp15xx-edx.dtsi
+index 0c57a9607454..71474c111eb8 100644
+--- a/arch/arm/boot/dts/stm32mp15xx-edx.dtsi
++++ b/arch/arm/boot/dts/stm32mp15xx-edx.dtsi
+@@ -57,6 +57,11 @@
+ 
+ 	led {
+ 		compatible = "gpio-leds";
++		red {
++			label = "red";
++			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
++			default-state = "off";
++		};
+ 		blue {
+ 			label = "heartbeat";
+ 			gpios = <&gpiod 9 GPIO_ACTIVE_HIGH>;
+diff --git a/arch/arm/boot/dts/stm32mp15xx-evx.dtsi b/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
+index 1a2b49cadac2..8fd72e924e69 100644
+--- a/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
++++ b/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
+@@ -93,7 +93,7 @@
+ 			"IN1LN" , "MICBIAS2",
+ 			"DMIC2DAT" , "MICBIAS1",
+ 			"DMIC1DAT" , "MICBIAS1";
+-		dais = <&sai2a_port &sai2b_port &sai4a_port &spdifrx_port
++		dais = <&sai2a_port &sai2b_port
+ 			&dfsdm0_port &dfsdm1_port &dfsdm2_port &dfsdm3_port>;
+ 		status = "okay";
+ 	};
+@@ -162,10 +162,18 @@
+ 	};
+ };
+ 
++&adc {
++	status = "disabled";
++};
++
++&dac {
++	status = "disabled";
++};
++
+ &cec {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&cec_pins_a>;
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &dcmi {
+@@ -186,6 +194,15 @@
+ 	};
+ };
+ 
++&dma2 {
++	status = "disabled";
++};
++
++&dmamux1 {
++	dma-masters = <&dma1>;
++	dma-channels = <8>;
++};
++
+ &dfsdm {
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&dfsdm_clkout_pins_a
+@@ -465,7 +482,7 @@
+ 	i2c-scl-falling-time-ns = <20>;
+ 	/delete-property/dmas;
+ 	/delete-property/dma-names;
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &ltdc {
+@@ -482,6 +499,101 @@
+ 	};
+ };
+ 
++&m4_adc {
++	vref-supply = <&vdda>;
++	status = "okay";
++};
++
++&m4_crc2 {
++	status = "okay";
++};
++
++&m4_cryp2 {
++	status = "okay";
++};
++
++&m4_dac {
++	vref-supply = <&vdda>;
++	status = "okay";
++};
++
++&m4_dma2 {
++	status = "okay";
++};
++
++&m4_hash2 {
++	status = "okay";
++};
++
++&m4_i2c5 {
++	pinctrl-names = "rproc_default";
++	pinctrl-0 = <&i2c5_pins_a>;
++	status = "okay";
++};
++
++&m4_qspi {
++	pinctrl-names = "default";
++	pinctrl-0 = <&m4_qspi_clk_pins_a &m4_qspi_bk1_pins_a
++		     &m4_qspi_bk2_pins_a>;
++	status = "okay";
++};
++
++&m4_rproc {
++	m4_system_resources {
++		status = "okay";
++
++	/*	button {
++			compatible = "rproc-srm-dev";
++			interrupt-parent = <&gpioa>;
++			interrupts = <14 2>;
++			interrupt-names = "irq";
++			status = "okay";
++		};*/
++
++		m4_led: m4_led {
++			compatible = "rproc-srm-dev";
++			pinctrl-names = "default";
++			pinctrl-0 = <&m4_leds_orange_pins>;
++			status = "okay";
++		};
++	};
++};
++
++&m4_rng2 {
++	status = "okay";
++};
++
++&m4_spi1 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&m4_spi1_pins_a>;
++	status = "okay";
++};
++
++&m4_timers2 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&m4_pwm2_pins_a>;
++	status = "okay";
++};
++
++&m4_timers7 {
++	pinctrl-names = "default";
++	status = "okay";
++};
++
++&m4_usart3 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&m4_usart3_pins_a>;
++	status = "okay";
++};
++
++&pinctrl {
++	m4_leds_orange_pins: m4-leds-orange-0 {
++		pins {
++			pinmux = <STM32_PINMUX('D', 8, RSVD)>;
++		};
++	};
++};
++
+ &qspi {
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&qspi_clk_pins_a &qspi_bk1_pins_a &qspi_bk2_pins_a>;
+@@ -489,7 +601,7 @@
+ 	reg = <0x58003000 0x1000>, <0x70000000 0x4000000>;
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+-	status = "okay";
++	status = "disabled";
+ 
+ 	flash0: mx66l51235l@0 {
+ 		compatible = "jedec,spi-nor";
+@@ -553,7 +665,7 @@
+ &sai4 {
+ 	clocks = <&rcc SAI4>, <&rcc PLL3_Q>, <&rcc PLL3_R>;
+ 	clock-names = "pclk", "x8k", "x11k";
+-	status = "okay";
++	status = "disabled";
+ 
+ 	sai4a: audio-controller@50027004 {
+ 		pinctrl-names = "default", "sleep";
+@@ -563,7 +675,7 @@
+ 		clocks = <&rcc SAI4_K>;
+ 		clock-names = "sai_ck";
+ 		st,iec60958;
+-		status = "okay";
++		status = "disabled";
+ 
+ 		sai4a_port: port {
+ 			sai4a_endpoint: endpoint {
+@@ -589,7 +701,7 @@
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&spdifrx_pins_a>;
+ 	pinctrl-1 = <&spdifrx_sleep_pins_a>;
+-	status = "okay";
++	status = "disabled";
+ 
+ 	spdifrx_port: port {
+ 		spdifrx_endpoint: endpoint {
+-- 
+2.17.1
+
