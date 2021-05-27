@@ -1,8 +1,10 @@
-From fb0a5257435847038b05b6c0ff986f22a5c26ca9 Mon Sep 17 00:00:00 2001
+From ce041addc3d80f028552a1d2887a288d53f5d18a Mon Sep 17 00:00:00 2001
 From: Yannick Fertre <yannick.fertre@st.com>
 Date: Thu, 5 Nov 2020 11:19:26 +0100
-Subject: [PATCH 25/31] ARM-stm32mp1-r2-DRM add-on for Android
+Subject: [PATCH 03/14] ARM-stm32mp1-r2-DRM add-on for Android
 
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Signed-off-by: Yannick FERTRE <yannick.fertre@st.com>
 ---
  drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.c | 51 +++++++++++++++----
  drivers/gpu/drm/drm_bridge.c                  |  7 +--

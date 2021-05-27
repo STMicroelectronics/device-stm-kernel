@@ -1,8 +1,9 @@
-From 3d75a680ea9dc13ba81a2bf30c2e6235133024ad Mon Sep 17 00:00:00 2001
+From 100e2a38b122749d379477bf20f18251b352adb7 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Thu, 2 Jul 2020 14:07:43 +0200
-Subject: [PATCH 24/31] ARM-stm32mp1-r2-POWER add-on for Android
+Subject: [PATCH 02/14] ARM-stm32mp1-r2-POWER add-on for Android
 
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 ---
  arch/arm/boot/dts/stm32mp15xx-edx.dtsi |   5 +
  drivers/power/supply/Kconfig           |  10 +

@@ -1,13 +1,12 @@
-From 4bba02c3eaed300eb6bf886d411ae330d278257a Mon Sep 17 00:00:00 2001
+From d6140c7deaa97f77d2513e2d39173cae38d2bab4 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Fri, 22 Jan 2021 09:12:48 +0100
-Subject: [PATCH] usb: dwc2: reduce risk due to race condition
+Subject: [PATCH 13/14] usb: dwc2: reduce risk due to race condition
 
 race between:
 1- dwc2_hcd_init which will start a worker with dwc2_conn_id_status_change function
 calling usb_gadget_map_request_by_dev which requires hsotg->gadget initialized
 2- usb_add_gadget_udc which initialize hsotg->gadget
-
 
 Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 ---

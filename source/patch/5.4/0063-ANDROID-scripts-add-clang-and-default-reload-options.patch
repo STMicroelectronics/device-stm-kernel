@@ -1,7 +1,7 @@
-From da4c937f5e9fed5ce3c789b5efc9f229c8f6f717 Mon Sep 17 00:00:00 2001
+From f7845851b9f807d8bf2b446a8d60211ce1a8b250 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Thu, 6 Aug 2020 09:19:06 +0200
-Subject: [PATCH 31/31] ANDROID: scripts: add clang and default reload options
+Subject: [PATCH 09/14] ANDROID: scripts: add clang and default reload options
  to merge configs script
 
 1- add -C <triple> option to use clang toolchain

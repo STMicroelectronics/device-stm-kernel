@@ -19,7 +19,7 @@
 #######################################
 # Constants
 #######################################
-SCRIPT_VERSION="1.4"
+SCRIPT_VERSION="1.6"
 
 SOC_FAMILY="stm32mp1"
 SOC_NAME="stm32mp15"
@@ -46,13 +46,6 @@ KERNEL_SOURCE_PATH=${TOP_PATH}/device/stm/${SOC_FAMILY}-kernel/source
 KERNEL_PREBUILT_PATH=${TOP_PATH}/device/stm/${SOC_FAMILY}-kernel/prebuilt
 
 KERNEL_MERGE_CONFIG=mergeconfig.sh
-KERNEL_ANDROID_BASE_CONFIG=android-base.config
-KERNEL_ANDROID_RECOMMENDED_CONFIG=android-recommended.config
-KERNEL_ANDROID_SOC_CONFIG=android-soc.config
-
-# debug used for userdebug/eng build, user used for user build
-KERNEL_ANDROID_DEBUG_CONFIG=android-debug.config
-KERNEL_ANDROID_USER_CONFIG=android-user.config
 
 GCC_CROSS_COMPILE_PATH=${TOP_PATH}/prebuilts/gcc/linux-x86/arm/${GCC_TOOLCHAIN}/bin
 GCC_CROSS_COMPILE=arm-eabi-
@@ -96,8 +89,10 @@ kernel_src=
 modulesinstall_param=
 
 kernel_defconfig=
-kernel_cleanup_fragment=
-kernel_addon_fragment=
+kernel_soc_fragment=
+kernel_debug_fragment=
+kernel_user_fragment=
+kernel_board_fragment=
 
 kernel_gpu_name=
 kernel_gpu_path=
@@ -301,8 +296,10 @@ do_execute()
 #   I KERNEL_BUILDCONFIG
 #   O kernel_src
 #   O kernel_defconfig
-#   O kernel_cleanup_fragment
-#   O kernel_addon_fragment
+#   O kernel_debug_fragment
+#   O kernel_user_fragment
+#   O kernel_soc_fragment
+#   O kernel_board_fragment
 #   O kernel_gpu_name
 #   O kernel_gpu_src
 # Arguments:
@@ -331,11 +328,17 @@ extract_buildconfig()
       "DEFCONFIG" )
         kernel_defconfig=($(echo $l_line | awk '{ print $2 }'))
         ;;
-      "CLEANUP_FRAGMENT" )
-        kernel_cleanup_fragment=($(echo $l_line | awk '{ print $2 }'))
+      "DEBUG_FRAGMENT" )
+        kernel_debug_fragment=($(echo $l_line | awk '{ print $2 }'))
         ;;
-      "ADDONS_FRAGMENT" )
-        kernel_addon_fragment=($(echo $l_line | awk '{ print $2 }'))
+      "USER_FRAGMENT" )
+        kernel_user_fragment=($(echo $l_line | awk '{ print $2 }'))
+        ;;
+      "SOC_FRAGMENT" )
+        kernel_soc_fragment=($(echo $l_line | awk '{ print $2 }'))
+        ;;
+      "BOARD_FRAGMENT" )
+        kernel_board_fragment=($(echo $l_line | awk '{ print $2 }'))
         ;;
       "GPU_NAME" )
         kernel_gpu_name=($(echo $l_line | awk '{ print $2 }'))
@@ -354,14 +357,15 @@ extract_buildconfig()
 # Globals:
 #   I kernel_src
 #   I kernel_defconfig
-#   I kernel_cleanup_fragment
-#   I kernel_addon_fragment
+#   I kernel_debug_fragment
+#   I kernel_user_fragment
+#   I kernel_soc_fragment
+#   I kernel_board_fragment
 #   I kernel_cross_compile
+#   I KERNEL_SOURCE_PATH
 #   I KERNEL_VERSION
 #   I KERNEL_OUT
 #   I KERNEL_ARCH
-#   I KERNEL_ANDROID_BASE_CONFIG
-#   I KERNEL_ANDROID_RECOMMENDED_CONFIG
 # Arguments:
 #   None
 # Returns:
@@ -371,7 +375,7 @@ generate_config()
 {
   local l_config_path
 
-  l_config_path=${kernel_src}/arch/${KERNEL_ARCH}/configs
+  l_config_path=${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}
 
   # Generate .config
   generate_kernel ${kernel_defconfig}
@@ -381,18 +385,13 @@ generate_config()
     exit 1
   fi
 
-  # Generate .config.required (Android required configuration = base + recommended)
-  \cat ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_BASE_CONFIG} ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_RECOMMENDED_CONFIG} > ${KERNEL_OUT}/.config.required
-
-  if [[ ${do_debug} == 1 ]]; then
-    \cat ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_SOC_CONFIG} ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_DEBUG_CONFIG} > ${KERNEL_OUT}/.config.soc
-  else
-    \cat ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_SOC_CONFIG} ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_VERSION}/${KERNEL_ANDROID_USER_CONFIG} > ${KERNEL_OUT}/.config.soc
-  fi
-
   # Merge .config and .config.required with fragments and SoC configuration for Android
-  ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${kernel_cross_compile} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_cleanup_fragment} ${l_config_path}/${kernel_addon_fragment} ${KERNEL_OUT}/.config.soc ${KERNEL_OUT}/.config.required > ${KERNEL_OUT}/mergeconfig.log 2>&1
-  green "  mergeconfig logs added in ${KERNEL_OUT}/mergeconfig.log"
+  if [[ ${do_debug} == 1 ]]; then
+    ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${kernel_cross_compile} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_debug_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+  else
+    ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${kernel_cross_compile} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_user_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+  fi
+  green "  => mergeconfig logs added in ${KERNEL_OUT}/mergeconfig.log"
 
   # Generate the corresponding defconfig file as refrence
   state "Generate corresponding defconfig.default for ${SOC_FAMILY}"
@@ -844,28 +843,39 @@ if [[ ${do_install} == 1 ]]; then
   state "Update prebuilt images"
   if [[ ${do_onlygpu} == 0 ]]; then
     # clean prebuilt directories
-    \rm -f ${KERNEL_PREBUILT_PATH}/modules/*
-    \rm -f ${KERNEL_PREBUILT_PATH}/kernel-*
-    \rm -f ${KERNEL_PREBUILT_PATH}/vmlinux-*
 
-    for soc_version in "${SOC_VERSIONS[@]}"
-    do
-      for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
+    if [[ ${do_onlymodules} == 0 ]] &&  [[ ${do_onlyvmlinux} == 0 ]]; then
+      for soc_version in "${SOC_VERSIONS[@]}"
       do
-        if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}" ]; then
-          \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
-        fi
-        \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}/*
-        \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+        for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
+        do
+          if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}" ]; then
+            \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+          fi
+          \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}/*
+          \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+        done
       done
-    done
-    \find ${KERNEL_OUT}/ -name "*.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
-    if [[ ${do_gdb} == 0 ]]; then
-      ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/*.ko
     fi
-    \find ${KERNEL_OUT}/ -name "zImage" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/kernel-${SOC_FAMILY}
-    if [[ ${do_gdb} == 1 ]]; then
-      \cp ${KERNEL_OUT}/vmlinux ${KERNEL_PREBUILT_PATH}/vmlinux-${SOC_FAMILY}
+
+    if [[ ${do_onlydtb} == 0 ]] && [[ ${do_onlyvmlinux} == 0 ]]; then
+      \rm -f ${KERNEL_PREBUILT_PATH}/modules/*
+      \find ${KERNEL_OUT}/ -name "*.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+      if [[ ${do_gdb} == 0 ]]; then
+        ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/*.ko
+      fi
+      if [[ ${do_onlymodulesinstall} == 1 ]]; then
+        \find ${KERNEL_OUT}/ -name "modules.dep" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+      fi
+    fi
+
+    if [[ ${do_onlydtb} == 0 ]] && [[ ${do_onlymodules} == 0 ]]; then
+      \rm -f ${KERNEL_PREBUILT_PATH}/kernel-*
+      \rm -f ${KERNEL_PREBUILT_PATH}/vmlinux-*
+      \find ${KERNEL_OUT}/ -name "zImage" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/kernel-${SOC_FAMILY}
+      if [[ ${do_gdb} == 1 ]]; then
+        \cp ${KERNEL_OUT}/vmlinux ${KERNEL_PREBUILT_PATH}/vmlinux-${SOC_FAMILY}
+      fi
     fi
   else
     \find ${KERNEL_OUT}/ -name "galcore.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/

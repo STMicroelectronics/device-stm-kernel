@@ -1,8 +1,8 @@
-From a9990ed2d7ca9339d37c7f67d6f5cb298c3f1b34 Mon Sep 17 00:00:00 2001
+From 678f9972be4a7f0140fca5b692d103de4a14cca0 Mon Sep 17 00:00:00 2001
 From: Brooke Basile <brookebasile@gmail.com>
 Date: Fri, 11 Sep 2020 03:14:27 -0400
-Subject: [PATCH] ath9k: hif_usb: fix race condition between usb_get_urb() and
- usb_kill_anchored_urbs()
+Subject: [PATCH 11/14] ath9k: hif_usb: fix race condition between
+ usb_get_urb() and usb_kill_anchored_urbs()
 
 [ Upstream commit 03fb92a432ea5abe5909bca1455b7e44a9380480 ]
 

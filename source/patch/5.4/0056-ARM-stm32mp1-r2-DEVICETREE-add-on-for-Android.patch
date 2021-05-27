@@ -1,16 +1,21 @@
-From fe7673fb7b2bcabe3c1929f73a3faa4ba8deda9c Mon Sep 17 00:00:00 2001
+From 3682f424eae32b7427bed354cbf1893cb2bfa441 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Fri, 17 Jul 2020 09:41:11 +0200
-Subject: [PATCH 28/31] ARM-stm32mp1-r2-DEVICETREE add-on for Android
+Subject: [PATCH 1/8] ARM-stm32mp1-r2-DEVICETREE add-on for Android
 
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 ---
  arch/arm/boot/dts/stm32mp151.dtsi      |  13 +--
+ arch/arm/boot/dts/stm32mp157a-ev1.dts  |   8 ++
+ arch/arm/boot/dts/stm32mp157c-ev1.dts  |   8 ++
+ arch/arm/boot/dts/stm32mp157d-ev1.dts  |   8 ++
+ arch/arm/boot/dts/stm32mp157f-ev1.dts  |   8 ++
  arch/arm/boot/dts/stm32mp15xx-edx.dtsi |   5 +
- arch/arm/boot/dts/stm32mp15xx-evx.dtsi | 126 +++++++++++++++++++++++--
- 3 files changed, 127 insertions(+), 17 deletions(-)
+ arch/arm/boot/dts/stm32mp15xx-evx.dtsi | 128 +++++++++++++++++++++++--
+ 7 files changed, 160 insertions(+), 18 deletions(-)
 
 diff --git a/arch/arm/boot/dts/stm32mp151.dtsi b/arch/arm/boot/dts/stm32mp151.dtsi
-index 02c60fb39ea3..1e132f82351f 100644
+index f8b515556667..92f32e098195 100644
 --- a/arch/arm/boot/dts/stm32mp151.dtsi
 +++ b/arch/arm/boot/dts/stm32mp151.dtsi
 @@ -176,13 +176,6 @@
@@ -48,6 +53,82 @@ index 02c60fb39ea3..1e132f82351f 100644
  				mode-recovery = <0x2>;
  				mode-stm32cubeprogrammer = <0x3>;
  				mode-ums_mmc0 = <0x10>;
+diff --git a/arch/arm/boot/dts/stm32mp157a-ev1.dts b/arch/arm/boot/dts/stm32mp157a-ev1.dts
+index 29ecd15c3216..14d402728c24 100644
+--- a/arch/arm/boot/dts/stm32mp157a-ev1.dts
++++ b/arch/arm/boot/dts/stm32mp157a-ev1.dts
+@@ -24,6 +24,14 @@
+ 	};
+ };
+ 
++&cpu0 {
++	clock-frequency = <650000000>;
++};
++
++&cpu1 {
++	clock-frequency = <650000000>;
++};
++
+ &dsi {
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+diff --git a/arch/arm/boot/dts/stm32mp157c-ev1.dts b/arch/arm/boot/dts/stm32mp157c-ev1.dts
+index c60727d9b1ae..a749bab39672 100644
+--- a/arch/arm/boot/dts/stm32mp157c-ev1.dts
++++ b/arch/arm/boot/dts/stm32mp157c-ev1.dts
+@@ -24,6 +24,14 @@
+ 	};
+ };
+ 
++&cpu0 {
++	clock-frequency = <650000000>;
++};
++
++&cpu1 {
++	clock-frequency = <650000000>;
++};
++
+ &dsi {
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+diff --git a/arch/arm/boot/dts/stm32mp157d-ev1.dts b/arch/arm/boot/dts/stm32mp157d-ev1.dts
+index a4752c100ef9..c3b05b13b389 100644
+--- a/arch/arm/boot/dts/stm32mp157d-ev1.dts
++++ b/arch/arm/boot/dts/stm32mp157d-ev1.dts
+@@ -24,6 +24,14 @@
+ 	};
+ };
+ 
++&cpu0 {
++	clock-frequency = <800000000>;
++};
++
++&cpu1 {
++	clock-frequency = <800000000>;
++};
++
+ &dsi {
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+diff --git a/arch/arm/boot/dts/stm32mp157f-ev1.dts b/arch/arm/boot/dts/stm32mp157f-ev1.dts
+index 0c18333c07cf..a24f6db576df 100644
+--- a/arch/arm/boot/dts/stm32mp157f-ev1.dts
++++ b/arch/arm/boot/dts/stm32mp157f-ev1.dts
+@@ -24,6 +24,14 @@
+ 	};
+ };
+ 
++&cpu0 {
++	clock-frequency = <800000000>;
++};
++
++&cpu1 {
++	clock-frequency = <800000000>;
++};
++
+ &dsi {
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
 diff --git a/arch/arm/boot/dts/stm32mp15xx-edx.dtsi b/arch/arm/boot/dts/stm32mp15xx-edx.dtsi
 index 0c57a9607454..71474c111eb8 100644
 --- a/arch/arm/boot/dts/stm32mp15xx-edx.dtsi
@@ -65,7 +146,7 @@ index 0c57a9607454..71474c111eb8 100644
  			label = "heartbeat";
  			gpios = <&gpiod 9 GPIO_ACTIVE_HIGH>;
 diff --git a/arch/arm/boot/dts/stm32mp15xx-evx.dtsi b/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
-index 1a2b49cadac2..8fd72e924e69 100644
+index 1a2b49cadac2..dddf8ac73c5a 100644
 --- a/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
 +++ b/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
 @@ -93,7 +93,7 @@
@@ -113,6 +194,15 @@ index 1a2b49cadac2..8fd72e924e69 100644
  &dfsdm {
  	pinctrl-names = "default", "sleep";
  	pinctrl-0 = <&dfsdm_clkout_pins_a
+@@ -403,7 +420,7 @@
+ 		DOVDD-supply = <&v2v8>;
+ 		powerdown-gpios = <&stmfx_pinctrl 18 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
+ 		reset-gpios = <&stmfx_pinctrl 19 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+-		rotation = <180>;
++		rotation = <0>;
+ 		status = "okay";
+ 
+ 		port {
 @@ -465,7 +482,7 @@
  	i2c-scl-falling-time-ns = <20>;
  	/delete-property/dmas;
