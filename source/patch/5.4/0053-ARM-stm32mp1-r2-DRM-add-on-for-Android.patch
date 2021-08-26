@@ -1,16 +1,19 @@
-From ce041addc3d80f028552a1d2887a288d53f5d18a Mon Sep 17 00:00:00 2001
+From 8d1cb36b9268501e82bbcd4ad552be97dea4a786 Mon Sep 17 00:00:00 2001
 From: Yannick Fertre <yannick.fertre@st.com>
 Date: Thu, 5 Nov 2020 11:19:26 +0100
-Subject: [PATCH 03/14] ARM-stm32mp1-r2-DRM add-on for Android
+Subject: [PATCH] ARM-stm32mp1-r2-DRM add-on for Android
 
 Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Signed-off-by: Yannick FERTRE <yannick.fertre@st.com>
 ---
  drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.c | 51 +++++++++++++++----
  drivers/gpu/drm/drm_bridge.c                  |  7 +--
+ drivers/gpu/drm/drm_gem.c                     |  1 +
+ .../gpu/drm/panel/panel-orisetech-otm8009a.c  |  2 +-
+ drivers/gpu/drm/panel/panel-raydium-rm68200.c |  2 +
  drivers/gpu/drm/stm/drv.c                     |  5 ++
- drivers/gpu/drm/stm/ltdc.c                    | 28 ++++++++++
- 4 files changed, 79 insertions(+), 12 deletions(-)
+ drivers/gpu/drm/stm/ltdc.c                    | 32 +++++++++++-
+ 7 files changed, 86 insertions(+), 14 deletions(-)
 
 diff --git a/drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.c b/drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.c
 index 34a9569e28f6..35b741ec2ec1 100644
@@ -175,6 +178,44 @@ index cba537c99e43..942d3ad0f1c5 100644
  }
  EXPORT_SYMBOL(drm_atomic_bridge_pre_enable);
  
+diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
+index 46ad14470d06..3ee0a659799a 100644
+--- a/drivers/gpu/drm/drm_gem.c
++++ b/drivers/gpu/drm/drm_gem.c
+@@ -665,6 +665,7 @@ static int objects_lookup(struct drm_file *filp, u32 *handle, int count,
+ 		/* Check if we currently have a reference on the object */
+ 		obj = idr_find(&filp->object_idr, handle[i]);
+ 		if (!obj) {
++			DRM_ERROR("objects_lookup failed for handle %u\n", handle[i]);
+ 			ret = -ENOENT;
+ 			break;
+ 		}
+diff --git a/drivers/gpu/drm/panel/panel-orisetech-otm8009a.c b/drivers/gpu/drm/panel/panel-orisetech-otm8009a.c
+index 2fdf9d183d23..11ee1b952515 100644
+--- a/drivers/gpu/drm/panel/panel-orisetech-otm8009a.c
++++ b/drivers/gpu/drm/panel/panel-orisetech-otm8009a.c
+@@ -208,7 +208,7 @@ static int otm8009a_init_sequence(struct otm8009a *ctx)
+ 	mdelay(120);
+ 
+ 	/* Default portrait 480x800 rgb24 */
+-	dcs_write_seq(ctx, MIPI_DCS_SET_ADDRESS_MODE, 0x00);
++	dcs_write_seq(ctx, MIPI_DCS_SET_ADDRESS_MODE, 0x00 | BIT(3)); /* BGR mode */
+ 
+ 	ret = mipi_dsi_dcs_set_column_address(dsi, 0,
+ 					      default_mode.hdisplay - 1);
+diff --git a/drivers/gpu/drm/panel/panel-raydium-rm68200.c b/drivers/gpu/drm/panel/panel-raydium-rm68200.c
+index b20e26666c7c..5e608e3320c7 100644
+--- a/drivers/gpu/drm/panel/panel-raydium-rm68200.c
++++ b/drivers/gpu/drm/panel/panel-raydium-rm68200.c
+@@ -304,6 +304,8 @@ static int rm68200_prepare(struct drm_panel *panel)
+ 
+ 	rm68200_init_sequence(ctx);
+ 
++	dcs_write_seq(ctx, MIPI_DCS_SET_ADDRESS_MODE, BIT(3)); /* BGR mode */
++
+ 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
+ 	if (ret)
+ 		return ret;
 diff --git a/drivers/gpu/drm/stm/drv.c b/drivers/gpu/drm/stm/drv.c
 index 5a9f9aca8bc2..727f9cee0c67 100644
 --- a/drivers/gpu/drm/stm/drv.c
@@ -199,7 +240,7 @@ index 5a9f9aca8bc2..727f9cee0c67 100644
  	ret = ltdc_load(ddev);
  	if (ret)
 diff --git a/drivers/gpu/drm/stm/ltdc.c b/drivers/gpu/drm/stm/ltdc.c
-index 1f7836be2e6a..9a5b3926d8cc 100644
+index 1f7836be2e6a..5134306594e4 100644
 --- a/drivers/gpu/drm/stm/ltdc.c
 +++ b/drivers/gpu/drm/stm/ltdc.c
 @@ -421,9 +421,19 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -256,7 +297,25 @@ index 1f7836be2e6a..9a5b3926d8cc 100644
  	if (!pm_runtime_active(ddev->dev)) {
  		ret = pm_runtime_get_sync(ddev->dev);
  		if (ret) {
-@@ -1011,6 +1036,8 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
+@@ -833,7 +858,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
+ 			LXCFBLR_CFBLL | LXCFBLR_CFBP, val);
+ 
+ 	/* Specifies the constant alpha value */
+-	val = CONSTA_MAX;
++	val = state->alpha >> 8;
+ 	reg_update_bits(ldev->regs, LTDC_L1CACR + lofs, LXCACR_CONSTA, val);
+ 
+ 	/* Specifies the blending factors */
+@@ -984,6 +1009,8 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
+ 
+ 	drm_plane_helper_add(plane, &ltdc_plane_helper_funcs);
+ 
++	drm_plane_create_alpha_property(plane);
++
+ 	DRM_DEBUG_DRIVER("plane:%d created\n", plane->base.id);
+ 
+ 	return plane;
+@@ -1011,6 +1038,8 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
  		return -EINVAL;
  	}
  
@@ -265,7 +324,7 @@ index 1f7836be2e6a..9a5b3926d8cc 100644
  	ret = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
  					&ltdc_crtc_funcs, NULL);
  	if (ret) {
-@@ -1033,6 +1060,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
+@@ -1033,6 +1062,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
  			DRM_ERROR("Can not create overlay plane %d\n", i);
  			goto cleanup;
  		}

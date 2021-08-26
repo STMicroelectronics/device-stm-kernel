@@ -1,7 +1,7 @@
-From 3a58395e9de54c788fd172673c2050fb06bc4277 Mon Sep 17 00:00:00 2001
+From 04d2ff677a27a391abef68535b3aa84c5bd1d611 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Thu, 2 Jul 2020 14:11:43 +0200
-Subject: [PATCH 07/14] ANDROID: binder: failed_at available only in case of
+Subject: [PATCH 07/13] ANDROID: binder: failed_at available only in case of
  failure
 
 Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>

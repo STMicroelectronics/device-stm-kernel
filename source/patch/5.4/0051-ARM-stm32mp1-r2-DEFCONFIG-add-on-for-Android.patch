@@ -1,20 +1,20 @@
-From ef56fd4b770b203639ce6c61b3f80fcba1ec808b Mon Sep 17 00:00:00 2001
+From 27c0c8d0d169beb01d3401c3eb2a615eeabaeb6c Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Thu, 2 Jul 2020 11:46:02 +0200
-Subject: [PATCH 01/14] ARM-stm32mp1-r2-DEFCONFIG add-on for Android
+Subject: [PATCH] ARM-stm32mp1-r2-DEFCONFIG add-on for Android
 
 Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 ---
- arch/arm/configs/gki_defconfig | 379 +++++++++++++++++++++++++++++++++
- 1 file changed, 379 insertions(+)
+ arch/arm/configs/gki_defconfig | 380 +++++++++++++++++++++++++++++++++
+ 1 file changed, 380 insertions(+)
  create mode 100644 arch/arm/configs/gki_defconfig
 
 diff --git a/arch/arm/configs/gki_defconfig b/arch/arm/configs/gki_defconfig
 new file mode 100644
-index 000000000000..842282b1ad57
+index 000000000000..6723978094db
 --- /dev/null
 +++ b/arch/arm/configs/gki_defconfig
-@@ -0,0 +1,379 @@
+@@ -0,0 +1,380 @@
 +CONFIG_ANDROID_BINDER_IPC=y
 +CONFIG_ANDROID_BINDERFS=y
 +CONFIG_ANDROID=y
@@ -64,6 +64,7 @@ index 000000000000..842282b1ad57
 +CONFIG_CPU_FREQ_GOV_POWERSAVE=m
 +CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
 +CONFIG_CPU_FREQ_GOV_USERSPACE=m
++CONFIG_CPU_FREQ_STAT=y
 +CONFIG_CPU_FREQ_TIMES=y
 +CONFIG_CPU_FREQ=y
 +CONFIG_CPU_IDLE=y
@@ -382,7 +383,7 @@ index 000000000000..842282b1ad57
 +# CONFIG_WLAN_VENDOR_INTEL is not set
 +# CONFIG_WLAN_VENDOR_INTERSIL is not set
 +# CONFIG_WLAN_VENDOR_MARVELL is not set
-+# CONFIG_WLAN_VENDOR_MEDIATEK is not set
++CONFIG_WLAN_VENDOR_MEDIATEK=y
 +# CONFIG_WLAN_VENDOR_RALINK is not set
 +# CONFIG_WLAN_VENDOR_RSI is not set
 +# CONFIG_WLAN_VENDOR_ST is not set

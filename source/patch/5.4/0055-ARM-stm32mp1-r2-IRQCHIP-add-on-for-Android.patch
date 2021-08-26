@@ -1,7 +1,7 @@
-From bf9d54eaac0ec332abc2d1a4d02afdd27a7a4e37 Mon Sep 17 00:00:00 2001
+From 4d4361827e15fce94e91b8594362712f719f20c7 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Wed, 5 Aug 2020 18:16:13 +0200
-Subject: [PATCH 05/14] ARM-stm32mp1-r2-IRQCHIP add-on for Android
+Subject: [PATCH 05/13] ARM-stm32mp1-r2-IRQCHIP add-on for Android
 
 Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 ---
@@ -10,7 +10,7 @@ Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
  2 files changed, 72 insertions(+), 52 deletions(-)
 
 diff --git a/arch/arm/boot/dts/stm32mp151.dtsi b/arch/arm/boot/dts/stm32mp151.dtsi
-index f0211917bb68..02c60fb39ea3 100644
+index 91639561366c..f8b515556667 100644
 --- a/arch/arm/boot/dts/stm32mp151.dtsi
 +++ b/arch/arm/boot/dts/stm32mp151.dtsi
 @@ -1331,17 +1331,18 @@

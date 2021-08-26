@@ -1,7 +1,7 @@
-From d6140c7deaa97f77d2513e2d39173cae38d2bab4 Mon Sep 17 00:00:00 2001
+From 689e73b97cf8116faf597aedd51e4dfaf8054732 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Fri, 22 Jan 2021 09:12:48 +0100
-Subject: [PATCH 13/14] usb: dwc2: reduce risk due to race condition
+Subject: [PATCH 13/13] usb: dwc2: reduce risk due to race condition
 
 race between:
 1- dwc2_hcd_init which will start a worker with dwc2_conn_id_status_change function

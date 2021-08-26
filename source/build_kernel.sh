@@ -70,6 +70,7 @@ do_onlydefaultconfig=0
 do_onlymrproper=0
 do_onlydtb=0
 do_onlygpu=0
+do_onlywifi=0
 do_onlymodules=0
 do_onlymodulesinstall=0
 do_onlyvmlinux=0
@@ -95,7 +96,10 @@ kernel_user_fragment=
 kernel_board_fragment=
 
 kernel_gpu_name=
-kernel_gpu_path=
+kernel_gpu_src=
+
+kernel_wifi_name=
+kernel_wifi_src=
 
 dtc_flags=
 
@@ -347,6 +351,14 @@ extract_buildconfig()
         l_src=($(echo $l_line | awk '{ print $2 }'))
         kernel_gpu_src=($(realpath ${l_src}))
         ;;
+      "WIFI_NAME" )
+        l_src=($(echo $l_line | awk '{ print $2 }'))
+        kernel_wifi_name=($(realpath ${l_src}))
+        ;;
+      "WIFI_SRC" )
+        l_src=($(echo $l_line | awk '{ print $2 }'))
+        kernel_wifi_src=($(realpath ${l_src}))
+        ;;
       esac
     fi
   done < ${KERNEL_SOURCE_PATH}/${KERNEL_BUILDCONFIG}
@@ -510,10 +522,39 @@ generate_gpu_driver()
   \mkdir -p ${KERNEL_OUT}/${kernel_gpu_name}
   \find ${KERNEL_OUT}/${kernel_gpu_name} -type l -exec rm {} +
   \cp -prs ${kernel_gpu_src}/* ${KERNEL_OUT}/${kernel_gpu_name}
-  # Build GPU driver
+  # Build GPU driver (add DEBUG=1 if debug required)
   \make ${verbose} -C ${KERNEL_OUT}/${kernel_gpu_name} O=${KERNEL_OUT} KERNEL_DIR=${KERNEL_OUT} ${kernel_cc_options} CROSS_COMPILE=${kernel_cross_compile} ARCH_TYPE=${KERNEL_ARCH} all SOC_PLATFORM=st-st &>${redirect_out} VIVANTE_ENABLE_DRM=1
   if [ $? -ne 0 ]; then
     error "Not possible to generate gpu driver module"
+    popd >/dev/null 2>&1
+    exit 1
+  fi
+}
+
+#######################################
+# Generate WIFI driver
+# Globals:
+#   I kernel_wifi_name
+#   I kernel_wifi_src
+#   I KERNEL_OUT
+#   I KERNEL_ARCH
+#   I kernel_cross_compile
+#   I kernel_cc_options
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+generate_wifi_driver()
+{
+  # Copy source in temporary directory (out)
+  \mkdir -p ${KERNEL_OUT}/${kernel_wifi_name}
+  \find ${KERNEL_OUT}/${kernel_wifi_name} -type l -exec rm {} +
+  \cp -prs ${kernel_wifi_src}/* ${KERNEL_OUT}/${kernel_wifi_name}
+  # Build WIFI driver
+  \make ${verbose} -C ${KERNEL_OUT}/${kernel_wifi_name} O=${KERNEL_OUT} KSRC=${KERNEL_OUT} ${kernel_cc_options} CROSS_COMPILE=${kernel_cross_compile} ARCH=${KERNEL_ARCH} &>${redirect_out}
+  if [ $? -ne 0 ]; then
+    error "Not possible to generate wifi driver module"
     popd >/dev/null 2>&1
     exit 1
   fi
@@ -655,6 +696,11 @@ if [ $# -eq 1 ]; then
       do_onlygpu=1
       ;;
 
+    "wifi" )
+      nb_states=$((nb_states+5))
+      do_onlywifi=1
+      ;;
+
     "defaultconfig" )
       nb_states=$((nb_states+2))
       do_onlydefaultconfig=1
@@ -696,7 +742,7 @@ if [ $# -eq 1 ]; then
   esac
 else
   # case all
-  nb_states=7
+  nb_states=8
   if [[ ${do_install} == 1 ]]; then
     nb_states=$((nb_states+1))
   fi
@@ -740,6 +786,14 @@ if [[ ${do_onlymrproper} == 1 ]]; then
 fi
 
 # Adapt value of nb_states following curent conditions
+# Remove 1 state if WIFI driver source not defined (bypass)
+if [[ ! -n "${kernel_wifi_src}" ]] && [[ ${do_full} == 1 ]]; then
+  nb_states=$((nb_states-1))
+fi
+# Remove 1 state if GPU driver source not defined (bypass)
+if  [[ ! -n "${kernel_gpu_src}" ]] && [[ ${do_full} == 1 ]]; then
+  nb_states=$((nb_states-1))
+fi
 # Remove 2 states when .config is present and do not request to regenerate it
 if [[ -f ${KERNEL_OUT}/.config ]]; then
   check_buildconfig
@@ -778,7 +832,7 @@ if [[ ${do_onlymenuconfig} == 1 ]]; then
 fi
 
 # Generate dtb files. If only dtb command requested, then go to install if needed
-if [[ ${do_onlymodules} == 0 ]] && [[ ${do_onlyvmlinux} == 0 ]] && [[ ${do_onlygpu} == 0 ]]; then
+if [[ ${do_onlymodules} == 0 ]] && [[ ${do_onlyvmlinux} == 0 ]] && [[ ${do_onlygpu} == 0 ]] && [[ ${do_onlywifi} == 0 ]]; then
 
   state "Generate dtb binaries"
   generate_kernel dtbs
@@ -791,7 +845,7 @@ fi
 # Build Kernel if required. If only vmlinux command requested, then go to install if needed
 do_execute || {
 
-  if [[ ! -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/zImage ]] || ([[ ${do_onlymodules} == 0 ]] && [[ ${do_onlygpu} == 0 ]]); then
+  if [[ ! -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/zImage ]] || ([[ ${do_onlymodules} == 0 ]] && [[ ${do_onlygpu} == 0 ]]  && [[ ${do_onlywifi} == 0 ]]); then
 
     state "Generate vmlinux for ${SOC_FAMILY}"
     generate_kernel vmlinux
@@ -807,7 +861,7 @@ do_execute || {
 # Build Kernel if required. If only modules command requested, then go to install if needed
 do_execute || {
 
-  if [[ ${do_onlygpu} == 0 ]]; then
+  if [[ ${do_onlygpu} == 0 ]] && [[ ${do_onlywifi} == 0 ]]; then
     state "Generate modules for ${SOC_FAMILY}"
     generate_kernel modules
     if [[ ${do_onlymodulesinstall} == 1 ]]; then
@@ -821,12 +875,33 @@ do_execute || {
 
 }
 
+# Generate wifi driver. If only wifi command requested, then go to install if needed
+do_execute || {
+  if [[ ${do_onlygpu} == 0 ]]; then
+    if [ -n "${kernel_wifi_src}" ] && [ -n "${kernel_wifi_name}" ]; then
+      state "Generate WIFI driver module for ${SOC_FAMILY}"
+      if  [ -d "${kernel_wifi_src}" ]; then
+        generate_wifi_driver
+      else
+        warning "${kernel_wifi_src} directory not found, can't generate Wi-Fi module"
+      fi
+    fi
+    if [[ ${do_onlywifi} == 1 ]]; then
+      execute_more=0
+    fi
+  fi
+}
+
 # Generate gpu driver. If only gpu command requested, then go to install if needed
 do_execute || {
-
-  state "Generate GPU driver module for ${SOC_FAMILY}"
-  generate_gpu_driver
-
+  if [ -n "${kernel_gpu_src}" ] && [ -n "${kernel_gpu_name}" ]; then
+    state "Generate GPU driver module for ${SOC_FAMILY}"
+    if  [ -d "${kernel_gpu_src}" ]; then
+      generate_gpu_driver
+    else
+      warning "${kernel_gpu_src} directory not found, can't generate GPU module"
+    fi
+  fi
 }
 
 # Copy generated images in kernel prebuilt directory if requested
@@ -841,7 +916,7 @@ if [[ ${do_install} == 1 ]]; then
   fi
 
   state "Update prebuilt images"
-  if [[ ${do_onlygpu} == 0 ]]; then
+  if [[ ${do_onlygpu} == 0 ]] && [[ ${do_onlywifi} == 0 ]]; then
     # clean prebuilt directories
 
     if [[ ${do_onlymodules} == 0 ]] &&  [[ ${do_onlyvmlinux} == 0 ]]; then
@@ -854,6 +929,7 @@ if [[ ${do_install} == 1 ]]; then
           fi
           \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}/*
           \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+          \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}-mb1166.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
         done
       done
     fi
@@ -878,9 +954,25 @@ if [[ ${do_install} == 1 ]]; then
       fi
     fi
   else
-    \find ${KERNEL_OUT}/ -name "galcore.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
-    if [[ ${do_gdb} == 0 ]]; then
-      ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/galcore.ko
+    if [[ ${do_onlygpu} == 1 ]]; then
+      if [ -n "${kernel_gpu_name}" ]; then
+        \find ${KERNEL_OUT}/ -name "${kernel_gpu_name}.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+        if [[ ${do_gdb} == 0 ]]; then
+          ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_gpu_name}.ko
+        fi
+      else
+        error "Undefined GPU name in build configuration file"
+      fi
+    fi
+    if [[ ${do_onlywifi} == 1 ]]; then
+      if [ -n "${kernel_wifi_name}" ]; then
+        \find ${KERNEL_OUT}/ -name "${kernel_wifi_name}.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+        if [[ ${do_gdb} == 0 ]]; then
+          ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_wifi_name}.ko
+        fi
+      else
+        error "Undefined WIFI name in build configuration file"
+      fi
     fi
   fi
 

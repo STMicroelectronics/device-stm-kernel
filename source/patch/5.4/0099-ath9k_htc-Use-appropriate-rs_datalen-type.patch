@@ -1,7 +1,7 @@
-From b668352c4aade7388d1844f88f20ccfe15fa9485 Mon Sep 17 00:00:00 2001
+From 978564d708018fc3a21d6f5281d0c6771ea48480 Mon Sep 17 00:00:00 2001
 From: Masashi Honma <masashi.honma@gmail.com>
 Date: Sun, 9 Aug 2020 08:32:58 +0900
-Subject: [PATCH] ath9k_htc: Use appropriate rs_datalen type
+Subject: [PATCH 12/13] ath9k_htc: Use appropriate rs_datalen type
 
 commit 5024f21c159f8c1668f581fff37140741c0b1ba9 upstream.
 

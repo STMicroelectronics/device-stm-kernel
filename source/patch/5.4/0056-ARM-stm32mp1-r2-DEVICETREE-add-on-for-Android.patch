@@ -1,19 +1,54 @@
-From 3682f424eae32b7427bed354cbf1893cb2bfa441 Mon Sep 17 00:00:00 2001
+From ce0df4f4ce200a14f36252ab699fed54aabe0edd Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Fri, 17 Jul 2020 09:41:11 +0200
-Subject: [PATCH 1/8] ARM-stm32mp1-r2-DEVICETREE add-on for Android
+Subject: [PATCH 06/13] ARM-stm32mp1-r2-DEVICETREE add-on for Android
 
 Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 ---
- arch/arm/boot/dts/stm32mp151.dtsi      |  13 +--
- arch/arm/boot/dts/stm32mp157a-ev1.dts  |   8 ++
- arch/arm/boot/dts/stm32mp157c-ev1.dts  |   8 ++
- arch/arm/boot/dts/stm32mp157d-ev1.dts  |   8 ++
- arch/arm/boot/dts/stm32mp157f-ev1.dts  |   8 ++
- arch/arm/boot/dts/stm32mp15xx-edx.dtsi |   5 +
- arch/arm/boot/dts/stm32mp15xx-evx.dtsi | 128 +++++++++++++++++++++++--
- 7 files changed, 160 insertions(+), 18 deletions(-)
+ arch/arm/boot/dts/Makefile                   |   8 +
+ arch/arm/boot/dts/stm32mp151.dtsi            |  13 +-
+ arch/arm/boot/dts/stm32mp157a-ev1-mb1166.dts | 132 ++++++++++++++++
+ arch/arm/boot/dts/stm32mp157a-ev1.dts        |  10 +-
+ arch/arm/boot/dts/stm32mp157c-ev1-mb1166.dts | 132 ++++++++++++++++
+ arch/arm/boot/dts/stm32mp157c-ev1.dts        |  10 +-
+ arch/arm/boot/dts/stm32mp157d-ev1-mb1166.dts | 132 ++++++++++++++++
+ arch/arm/boot/dts/stm32mp157d-ev1.dts        |  10 +-
+ arch/arm/boot/dts/stm32mp157f-ev1-mb1166.dts | 132 ++++++++++++++++
+ arch/arm/boot/dts/stm32mp157f-ev1.dts        |  10 +-
+ arch/arm/boot/dts/stm32mp15xx-edx.dtsi       |   5 +
+ arch/arm/boot/dts/stm32mp15xx-evx.dtsi       | 156 ++++++++++++++++---
+ 12 files changed, 714 insertions(+), 36 deletions(-)
+ create mode 100644 arch/arm/boot/dts/stm32mp157a-ev1-mb1166.dts
+ create mode 100644 arch/arm/boot/dts/stm32mp157c-ev1-mb1166.dts
+ create mode 100644 arch/arm/boot/dts/stm32mp157d-ev1-mb1166.dts
+ create mode 100644 arch/arm/boot/dts/stm32mp157f-ev1-mb1166.dts
 
+diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
+index 1c5d5b0278b2..33e64eaa188a 100644
+--- a/arch/arm/boot/dts/Makefile
++++ b/arch/arm/boot/dts/Makefile
+@@ -26,6 +26,10 @@ DTC_FLAGS_stm32mp157a-ev1 += -@
+ DTC_FLAGS_stm32mp157c-ev1 += -@
+ DTC_FLAGS_stm32mp157d-ev1 += -@
+ DTC_FLAGS_stm32mp157f-ev1 += -@
++DTC_FLAGS_stm32mp157a-ev1-mb1166 += -@
++DTC_FLAGS_stm32mp157c-ev1-mb1166 += -@
++DTC_FLAGS_stm32mp157d-ev1-mb1166 += -@
++DTC_FLAGS_stm32mp157f-ev1-mb1166 += -@
+ DTC_FLAGS_stm32mp157c-ev1-a7-examples += -@
+ DTC_FLAGS_stm32mp157c-ev1-m4-examples += -@
+ DTC_FLAGS_stm32mp157f-ev1-a7-examples += -@
+@@ -1036,6 +1040,10 @@ dtb-$(CONFIG_ARCH_STM32) += \
+ 	stm32mp157c-ev1.dtb \
+ 	stm32mp157d-ev1.dtb \
+ 	stm32mp157f-ev1.dtb \
++	stm32mp157a-ev1-mb1166.dtb \
++	stm32mp157c-ev1-mb1166.dtb \
++	stm32mp157d-ev1-mb1166.dtb \
++	stm32mp157f-ev1-mb1166.dtb \
+ 	stm32mp157c-ev1-a7-examples.dtb \
+ 	stm32mp157c-ev1-m4-examples.dtb \
+ 	stm32mp157f-ev1-a7-examples.dtb \
 diff --git a/arch/arm/boot/dts/stm32mp151.dtsi b/arch/arm/boot/dts/stm32mp151.dtsi
 index f8b515556667..92f32e098195 100644
 --- a/arch/arm/boot/dts/stm32mp151.dtsi
@@ -53,8 +88,146 @@ index f8b515556667..92f32e098195 100644
  				mode-recovery = <0x2>;
  				mode-stm32cubeprogrammer = <0x3>;
  				mode-ums_mmc0 = <0x10>;
+diff --git a/arch/arm/boot/dts/stm32mp157a-ev1-mb1166.dts b/arch/arm/boot/dts/stm32mp157a-ev1-mb1166.dts
+new file mode 100644
+index 000000000000..dc63f17330d3
+--- /dev/null
++++ b/arch/arm/boot/dts/stm32mp157a-ev1-mb1166.dts
+@@ -0,0 +1,132 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Copyright (C) STMicroelectronics 2019 - All Rights Reserved
++ * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
++ */
++/dts-v1/;
++
++#include "stm32mp157a-ed1.dts"
++#include "stm32mp15xx-evx.dtsi"
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/soc/stm32-hdp.h>
++
++/ {
++	model = "STMicroelectronics STM32MP157A eval daughter on eval mother with MB1166 display panel";
++	compatible = "st,stm32mp157a-ev1", "st,stm32mp157a-ed1", "st,stm32mp157";
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	aliases {
++		serial1 = &usart3;
++		ethernet0 = &ethernet0;
++	};
++};
++
++&cpu0 {
++	clock-frequency = <650000000>;
++};
++
++&cpu1 {
++	clock-frequency = <650000000>;
++};
++
++&dsi {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		port@0 {
++			reg = <0>;
++			dsi_in: endpoint {
++				remote-endpoint = <&ltdc_ep0_out>;
++			};
++		};
++
++		port@1 {
++			reg = <1>;
++			dsi_out: endpoint {
++				remote-endpoint = <&dsi_panel_in>;
++			};
++		};
++	};
++
++	panel_dsi: panel-dsi@0 {
++		compatible = "orisetech,otm8009a";
++		reg = <0>;
++		reset-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;
++		power-supply = <&v3v3>;
++		status = "okay";
++
++		port {
++			dsi_panel_in: endpoint {
++				remote-endpoint = <&dsi_out>;
++			};
++		};
++	};
++};
++
++&ov5640 {
++	rotation = <180>;
++};
++
++&button1 {
++	label = "JoyLeft";
++	linux,code = <KEY_LEFT>;
++};
++
++&button2 {
++	label = "JoyUp";
++	linux,code = <KEY_UP>;
++};
++
++&button3 {
++	label = "JoyDown";
++	linux,code = <KEY_DOWN>;
++};
++
++&button4 {
++	label = "JoyRight";
++	linux,code = <KEY_RIGHT>;
++};
++
++&i2c2 {
++	touchscreen@2a {
++		compatible = "focaltech,ft6236";
++		reg = <0x2a>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++	touchscreen@38 {
++		compatible = "focaltech,ft6236";
++		reg = <0x38>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++};
++
++&m_can1 {
++	pinctrl-names = "default", "sleep";
++	pinctrl-0 = <&m_can1_pins_a>;
++	pinctrl-1 = <&m_can1_sleep_pins_a>;
++	status = "okay";
++};
 diff --git a/arch/arm/boot/dts/stm32mp157a-ev1.dts b/arch/arm/boot/dts/stm32mp157a-ev1.dts
-index 29ecd15c3216..14d402728c24 100644
+index 29ecd15c3216..2b5c26bef77d 100644
 --- a/arch/arm/boot/dts/stm32mp157a-ev1.dts
 +++ b/arch/arm/boot/dts/stm32mp157a-ev1.dts
 @@ -24,6 +24,14 @@
@@ -72,8 +245,155 @@ index 29ecd15c3216..14d402728c24 100644
  &dsi {
  	#address-cells = <1>;
  	#size-cells = <0>;
+@@ -69,7 +77,7 @@
+ 		compatible = "goodix,gt9147";
+ 		reg = <0x5d>;
+ 		panel = <&panel_dsi>;
+-		pinctrl-0 = <&goodix_pins>;
++		pinctrl-0 = <&touchscreen_pins>;
+ 		pinctrl-names = "default";
+ 		status = "okay";
+ 
+diff --git a/arch/arm/boot/dts/stm32mp157c-ev1-mb1166.dts b/arch/arm/boot/dts/stm32mp157c-ev1-mb1166.dts
+new file mode 100644
+index 000000000000..5364318841fa
+--- /dev/null
++++ b/arch/arm/boot/dts/stm32mp157c-ev1-mb1166.dts
+@@ -0,0 +1,132 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Copyright (C) STMicroelectronics 2019 - All Rights Reserved
++ * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
++ */
++/dts-v1/;
++
++#include "stm32mp157c-ed1.dts"
++#include "stm32mp15xx-evx.dtsi"
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/soc/stm32-hdp.h>
++
++/ {
++	model = "STMicroelectronics STM32MP157C eval daughter on eval mother with MB1166 display panel";
++	compatible = "st,stm32mp157c-ev1", "st,stm32mp157c-ed1", "st,stm32mp157";
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	aliases {
++		serial1 = &usart3;
++		ethernet0 = &ethernet0;
++	};
++};
++
++&cpu0 {
++	clock-frequency = <650000000>;
++};
++
++&cpu1 {
++	clock-frequency = <650000000>;
++};
++
++&dsi {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		port@0 {
++			reg = <0>;
++			dsi_in: endpoint {
++				remote-endpoint = <&ltdc_ep0_out>;
++			};
++		};
++
++		port@1 {
++			reg = <1>;
++			dsi_out: endpoint {
++				remote-endpoint = <&dsi_panel_in>;
++			};
++		};
++	};
++
++	panel_dsi: panel-dsi@0 {
++		compatible = "orisetech,otm8009a";
++		reg = <0>;
++		reset-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;
++		power-supply = <&v3v3>;
++		status = "okay";
++
++		port {
++			dsi_panel_in: endpoint {
++				remote-endpoint = <&dsi_out>;
++			};
++		};
++	};
++};
++
++&ov5640 {
++	rotation = <180>;
++};
++
++&button1 {
++	label = "JoyLeft";
++	linux,code = <KEY_LEFT>;
++};
++
++&button2 {
++	label = "JoyUp";
++	linux,code = <KEY_UP>;
++};
++
++&button3 {
++	label = "JoyDown";
++	linux,code = <KEY_DOWN>;
++};
++
++&button4 {
++	label = "JoyRight";
++	linux,code = <KEY_RIGHT>;
++};
++
++&i2c2 {
++	touchscreen@2a {
++		compatible = "focaltech,ft6236";
++		reg = <0x2a>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++	touchscreen@38 {
++		compatible = "focaltech,ft6236";
++		reg = <0x38>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++};
++
++&m_can1 {
++	pinctrl-names = "default", "sleep";
++	pinctrl-0 = <&m_can1_pins_a>;
++	pinctrl-1 = <&m_can1_sleep_pins_a>;
++	status = "okay";
++};
 diff --git a/arch/arm/boot/dts/stm32mp157c-ev1.dts b/arch/arm/boot/dts/stm32mp157c-ev1.dts
-index c60727d9b1ae..a749bab39672 100644
+index c60727d9b1ae..40ad7e79c73b 100644
 --- a/arch/arm/boot/dts/stm32mp157c-ev1.dts
 +++ b/arch/arm/boot/dts/stm32mp157c-ev1.dts
 @@ -24,6 +24,14 @@
@@ -91,8 +411,155 @@ index c60727d9b1ae..a749bab39672 100644
  &dsi {
  	#address-cells = <1>;
  	#size-cells = <0>;
+@@ -69,7 +77,7 @@
+ 		compatible = "goodix,gt9147";
+ 		reg = <0x5d>;
+ 		panel = <&panel_dsi>;
+-		pinctrl-0 = <&goodix_pins>;
++		pinctrl-0 = <&touchscreen_pins>;
+ 		pinctrl-names = "default";
+ 		status = "okay";
+ 
+diff --git a/arch/arm/boot/dts/stm32mp157d-ev1-mb1166.dts b/arch/arm/boot/dts/stm32mp157d-ev1-mb1166.dts
+new file mode 100644
+index 000000000000..1a23ed611aab
+--- /dev/null
++++ b/arch/arm/boot/dts/stm32mp157d-ev1-mb1166.dts
+@@ -0,0 +1,132 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Copyright (C) STMicroelectronics 2019 - All Rights Reserved
++ * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
++ */
++/dts-v1/;
++
++#include "stm32mp157d-ed1.dts"
++#include "stm32mp15xx-evx.dtsi"
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/soc/stm32-hdp.h>
++
++/ {
++	model = "STMicroelectronics STM32MP157D eval daughter on eval mother with MB1166 display panel";
++	compatible = "st,stm32mp157d-ev1", "st,stm32mp157d-ed1", "st,stm32mp157";
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	aliases {
++		serial1 = &usart3;
++		ethernet0 = &ethernet0;
++	};
++};
++
++&cpu0 {
++	clock-frequency = <800000000>;
++};
++
++&cpu1 {
++	clock-frequency = <800000000>;
++};
++
++&dsi {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		port@0 {
++			reg = <0>;
++			dsi_in: endpoint {
++				remote-endpoint = <&ltdc_ep0_out>;
++			};
++		};
++
++		port@1 {
++			reg = <1>;
++			dsi_out: endpoint {
++				remote-endpoint = <&dsi_panel_in>;
++			};
++		};
++	};
++
++	panel_dsi: panel-dsi@0 {
++		compatible = "orisetech,otm8009a";
++		reg = <0>;
++		reset-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;
++		power-supply = <&v3v3>;
++		status = "okay";
++
++		port {
++			dsi_panel_in: endpoint {
++				remote-endpoint = <&dsi_out>;
++			};
++		};
++	};
++};
++
++&ov5640 {
++	rotation = <180>;
++};
++
++&button1 {
++	label = "JoyLeft";
++	linux,code = <KEY_LEFT>;
++};
++
++&button2 {
++	label = "JoyUp";
++	linux,code = <KEY_UP>;
++};
++
++&button3 {
++	label = "JoyDown";
++	linux,code = <KEY_DOWN>;
++};
++
++&button4 {
++	label = "JoyRight";
++	linux,code = <KEY_RIGHT>;
++};
++
++&i2c2 {
++	touchscreen@2a {
++		compatible = "focaltech,ft6236";
++		reg = <0x2a>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++	touchscreen@38 {
++		compatible = "focaltech,ft6236";
++		reg = <0x38>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++};
++
++&m_can1 {
++	pinctrl-names = "default", "sleep";
++	pinctrl-0 = <&m_can1_pins_a>;
++	pinctrl-1 = <&m_can1_sleep_pins_a>;
++	status = "okay";
++};
 diff --git a/arch/arm/boot/dts/stm32mp157d-ev1.dts b/arch/arm/boot/dts/stm32mp157d-ev1.dts
-index a4752c100ef9..c3b05b13b389 100644
+index a4752c100ef9..1e05fb36b61c 100644
 --- a/arch/arm/boot/dts/stm32mp157d-ev1.dts
 +++ b/arch/arm/boot/dts/stm32mp157d-ev1.dts
 @@ -24,6 +24,14 @@
@@ -110,8 +577,155 @@ index a4752c100ef9..c3b05b13b389 100644
  &dsi {
  	#address-cells = <1>;
  	#size-cells = <0>;
+@@ -69,7 +77,7 @@
+ 		compatible = "goodix,gt9147";
+ 		reg = <0x5d>;
+ 		panel = <&panel_dsi>;
+-		pinctrl-0 = <&goodix_pins>;
++		pinctrl-0 = <&touchscreen_pins>;
+ 		pinctrl-names = "default";
+ 		status = "okay";
+ 
+diff --git a/arch/arm/boot/dts/stm32mp157f-ev1-mb1166.dts b/arch/arm/boot/dts/stm32mp157f-ev1-mb1166.dts
+new file mode 100644
+index 000000000000..a20760a3acda
+--- /dev/null
++++ b/arch/arm/boot/dts/stm32mp157f-ev1-mb1166.dts
+@@ -0,0 +1,132 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Copyright (C) STMicroelectronics 2019 - All Rights Reserved
++ * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
++ */
++/dts-v1/;
++
++#include "stm32mp157f-ed1.dts"
++#include "stm32mp15xx-evx.dtsi"
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/soc/stm32-hdp.h>
++
++/ {
++	model = "STMicroelectronics STM32MP157F eval daughter on eval mother with MB1166 display panel";
++	compatible = "st,stm32mp157f-ev1", "st,stm32mp157f-ed1", "st,stm32mp157";
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	aliases {
++		serial1 = &usart3;
++		ethernet0 = &ethernet0;
++	};
++};
++
++&cpu0 {
++	clock-frequency = <800000000>;
++};
++
++&cpu1 {
++	clock-frequency = <800000000>;
++};
++
++&dsi {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		port@0 {
++			reg = <0>;
++			dsi_in: endpoint {
++				remote-endpoint = <&ltdc_ep0_out>;
++			};
++		};
++
++		port@1 {
++			reg = <1>;
++			dsi_out: endpoint {
++				remote-endpoint = <&dsi_panel_in>;
++			};
++		};
++	};
++
++	panel_dsi: panel-dsi@0 {
++		compatible = "orisetech,otm8009a";
++		reg = <0>;
++		reset-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;
++		power-supply = <&v3v3>;
++		status = "okay";
++
++		port {
++			dsi_panel_in: endpoint {
++				remote-endpoint = <&dsi_out>;
++			};
++		};
++	};
++};
++
++&ov5640 {
++	rotation = <180>;
++};
++
++&button1 {
++	label = "JoyLeft";
++	linux,code = <KEY_LEFT>;
++};
++
++&button2 {
++	label = "JoyUp";
++	linux,code = <KEY_UP>;
++};
++
++&button3 {
++	label = "JoyDown";
++	linux,code = <KEY_DOWN>;
++};
++
++&button4 {
++	label = "JoyRight";
++	linux,code = <KEY_RIGHT>;
++};
++
++&i2c2 {
++	touchscreen@2a {
++		compatible = "focaltech,ft6236";
++		reg = <0x2a>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++	touchscreen@38 {
++		compatible = "focaltech,ft6236";
++		reg = <0x38>;
++		interrupts = <14 2>;
++		interrupt-parent = <&stmfx_pinctrl>;
++		interrupt-controller;
++		touchscreen-size-x = <480>;
++		touchscreen-size-y = <800>;
++		pinctrl-0 = <&touchscreen_pins>;
++		pinctrl-names = "default";
++		panel = <&panel_dsi>;
++		status = "okay";
++	};
++};
++
++&m_can1 {
++	pinctrl-names = "default", "sleep";
++	pinctrl-0 = <&m_can1_pins_a>;
++	pinctrl-1 = <&m_can1_sleep_pins_a>;
++	status = "okay";
++};
 diff --git a/arch/arm/boot/dts/stm32mp157f-ev1.dts b/arch/arm/boot/dts/stm32mp157f-ev1.dts
-index 0c18333c07cf..a24f6db576df 100644
+index 0c18333c07cf..58ea0feba3fe 100644
 --- a/arch/arm/boot/dts/stm32mp157f-ev1.dts
 +++ b/arch/arm/boot/dts/stm32mp157f-ev1.dts
 @@ -24,6 +24,14 @@
@@ -129,6 +743,15 @@ index 0c18333c07cf..a24f6db576df 100644
  &dsi {
  	#address-cells = <1>;
  	#size-cells = <0>;
+@@ -69,7 +77,7 @@
+ 		compatible = "goodix,gt9147";
+ 		reg = <0x5d>;
+ 		panel = <&panel_dsi>;
+-		pinctrl-0 = <&goodix_pins>;
++		pinctrl-0 = <&touchscreen_pins>;
+ 		pinctrl-names = "default";
+ 		status = "okay";
+ 
 diff --git a/arch/arm/boot/dts/stm32mp15xx-edx.dtsi b/arch/arm/boot/dts/stm32mp15xx-edx.dtsi
 index 0c57a9607454..71474c111eb8 100644
 --- a/arch/arm/boot/dts/stm32mp15xx-edx.dtsi
@@ -146,9 +769,56 @@ index 0c57a9607454..71474c111eb8 100644
  			label = "heartbeat";
  			gpios = <&gpiod 9 GPIO_ACTIVE_HIGH>;
 diff --git a/arch/arm/boot/dts/stm32mp15xx-evx.dtsi b/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
-index 1a2b49cadac2..dddf8ac73c5a 100644
+index 1a2b49cadac2..6722e060d0b7 100644
 --- a/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
 +++ b/arch/arm/boot/dts/stm32mp15xx-evx.dtsi
+@@ -21,33 +21,33 @@
+ 		#size-cells = <0>;
+ 		pinctrl-0 = <&joystick_pins>;
+ 		pinctrl-names = "default";
+-		button-0 {
++		button0: button-0 {
+ 			label = "JoySel";
+ 			linux,code = <KEY_ENTER>;
+ 			interrupt-parent = <&stmfx_pinctrl>;
+ 			interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+ 		};
+-		button-1 {
+-			label = "JoyDown";
+-			linux,code = <KEY_DOWN>;
++		button1: button-1 {
++			label = "JoyRight";
++			linux,code = <KEY_RIGHT>;
+ 			interrupt-parent = <&stmfx_pinctrl>;
+ 			interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+ 		};
+-		button-2 {
+-			label = "JoyLeft";
+-			linux,code = <KEY_LEFT>;
++		button2: button-2 {
++			label = "JoyDown";
++			linux,code = <KEY_DOWN>;
+ 			interrupt-parent = <&stmfx_pinctrl>;
+ 			interrupts = <2 IRQ_TYPE_EDGE_RISING>;
+ 		};
+-		button-3 {
+-			label = "JoyRight";
+-			linux,code = <KEY_RIGHT>;
++		button3: button-3 {
++			label = "JoyUp";
++			linux,code = <KEY_UP>;
+ 			interrupt-parent = <&stmfx_pinctrl>;
+ 			interrupts = <3 IRQ_TYPE_EDGE_RISING>;
+ 		};
+-		button-4 {
+-			label = "JoyUp";
+-			linux,code = <KEY_UP>;
++		button4: button-4 {
++			label = "JoyLeft";
++			linux,code = <KEY_LEFT>;
+ 			interrupt-parent = <&stmfx_pinctrl>;
+ 			interrupts = <4 IRQ_TYPE_EDGE_RISING>;
+ 		};
 @@ -93,7 +93,7 @@
  			"IN1LN" , "MICBIAS2",
  			"DMIC2DAT" , "MICBIAS1",
@@ -203,6 +873,15 @@ index 1a2b49cadac2..dddf8ac73c5a 100644
  		status = "okay";
  
  		port {
+@@ -434,7 +451,7 @@
+ 			#interrupt-cells = <2>;
+ 			gpio-ranges = <&stmfx_pinctrl 0 0 24>;
+ 
+-			goodix_pins: goodix {
++			touchscreen_pins: touchscreen {
+ 				pins = "gpio14";
+ 				bias-pull-down;
+ 			};
 @@ -465,7 +482,7 @@
  	i2c-scl-falling-time-ns = <20>;
  	/delete-property/dmas;

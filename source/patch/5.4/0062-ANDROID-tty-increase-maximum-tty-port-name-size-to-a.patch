@@ -1,7 +1,7 @@
-From 4c670cff0f96e824f3d114cca795b272da32feee Mon Sep 17 00:00:00 2001
+From 9ab254cc7bfb8d121a4bb8d414213fac2a293c05 Mon Sep 17 00:00:00 2001
 From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
 Date: Wed, 5 Aug 2020 18:17:20 +0200
-Subject: [PATCH 08/14] ANDROID: tty: increase maximum tty port name size to
+Subject: [PATCH 08/13] ANDROID: tty: increase maximum tty port name size to
  avoid stack corruption
 
 Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
