@@ -1,0 +1,43 @@
+From 02a792a28b690ddab79e75e4f1c1804e80da6085 Mon Sep 17 00:00:00 2001
+From: Alain Volmat <alain.volmat@foss.st.com>
+Date: Mon, 17 Jun 2024 14:18:12 +0200
+Subject: [PATCH 22/23] media: stm32: dcmipp: apply ISP params on either
+ P1VSYNC or P2VSYNC
+
+ISP block is being used with either (or both) main & aux pipes.
+Depending on which pipe is enabled, either P1VSYNC or P2VSYNC
+signals will be updated.  If both pipes are running together, both
+P1VSYNC & P2VSYNC will move synchronously.
+Ensure that isp-params are applied in both cases.
+
+Change-Id: I73da0ba4e52a0942ed2e1ba9b4a25c83d8a4f439
+Signed-off-by: Alain Volmat <alain.volmat@foss.st.com>
+---
+ .../media/platform/st/stm32/stm32-dcmipp/dcmipp-isp-params.c  | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-isp-params.c b/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-isp-params.c
+index 623403c6cc809..75459b7971be8 100644
+--- a/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-isp-params.c
++++ b/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-isp-params.c
+@@ -26,6 +26,7 @@
+ #define DCMIPP_ISP_PARAMS_DRV_NAME "dcmipp-isp-params"
+ 
+ #define DCMIPP_CMSR2_P1VSYNCF BIT(18)
++#define DCMIPP_CMSR2_P2VSYNCF BIT(26)
+ 
+ struct dcmipp_buf {
+ 	struct vb2_v4l2_buffer	vb;
+@@ -522,7 +523,8 @@ static irqreturn_t dcmipp_isp_params_irq_thread(int irq, void *arg)
+ 	struct dcmipp_buf *cur_buf = NULL;
+ 
+ 	/* We are only interested in VSYNC interrupts */
+-	if (!(ved->cmsr2 & DCMIPP_CMSR2_P1VSYNCF))
++	if (!(ved->cmsr2 & DCMIPP_CMSR2_P1VSYNCF) &&
++	    !(ved->cmsr2 & DCMIPP_CMSR2_P2VSYNCF))
+ 		return IRQ_HANDLED;
+ 
+ 	spin_lock_irq(&vout->irqlock);
+-- 
+2.34.1
+

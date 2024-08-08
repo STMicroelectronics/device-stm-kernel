@@ -1,0 +1,159 @@
+From 487a01c8f04862d62ebfe3e9718dc30c1b8dbb5b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Julien=20Qu=C3=A9r=C3=A9?= <jquere@witekio.com>
+Date: Thu, 10 Aug 2023 10:08:20 +0200
+Subject: [PATCH 09/23] drm: create a new expected_present_time crtc property
+ (BSP 5.1)
+
+This commit adds to the drm core driver a generic helper to register the
+property.
+Its content is decoded by the core and provided in the crtc's associated state
+structure.
+The STM drm driver use the expected_present_time value to delay the display
+of the frame.
+
+see also: Documentation/gpu/drm-kms.rst#462
+---
+ drivers/gpu/drm/drm_atomic_uapi.c |  4 ++++
+ drivers/gpu/drm/drm_crtc.c        | 17 ++++++++++++++++
+ drivers/gpu/drm/stm/ltdc.c        | 32 +++++++++++++++++++++++++++++++
+ include/drm/drm_crtc.h            |  5 +++++
+ 4 files changed, 58 insertions(+)
+
+diff --git a/drivers/gpu/drm/drm_atomic_uapi.c b/drivers/gpu/drm/drm_atomic_uapi.c
+index 423e853d2ade3..59f8f9899a4a2 100644
+--- a/drivers/gpu/drm/drm_atomic_uapi.c
++++ b/drivers/gpu/drm/drm_atomic_uapi.c
+@@ -450,6 +450,8 @@ static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
+ 		set_out_fence_for_crtc(state->state, crtc, fence_ptr);
+ 	} else if (property == crtc->scaling_filter_property) {
+ 		state->scaling_filter = val;
++	} else if (property == crtc->expected_present_time_property) {
++		state->expected_present_time = val;
+ 	} else if (crtc->funcs->atomic_set_property) {
+ 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
+ 	} else {
+@@ -487,6 +489,8 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
+ 		*val = 0;
+ 	else if (property == crtc->scaling_filter_property)
+ 		*val = state->scaling_filter;
++	else if (property == crtc->expected_present_time_property)
++		*val = state->expected_present_time;
+ 	else if (crtc->funcs->atomic_get_property)
+ 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
+ 	else
+diff --git a/drivers/gpu/drm/drm_crtc.c b/drivers/gpu/drm/drm_crtc.c
+index cb90e70d85e86..6fde042a18661 100644
+--- a/drivers/gpu/drm/drm_crtc.c
++++ b/drivers/gpu/drm/drm_crtc.c
+@@ -955,3 +955,20 @@ int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
+ 	return 0;
+ }
+ EXPORT_SYMBOL(drm_crtc_create_scaling_filter_property);
++
++int drm_crtc_create_expected_present_time_property(struct drm_crtc *crtc)
++{
++	struct drm_property *prop;
++
++	prop = drm_property_create_range(crtc->dev, 0, "expected_present_time", 0,
++					 (uint64_t)(~((uint64_t)0)));
++
++	if (IS_ERR(prop))
++		return PTR_ERR(prop);
++
++	drm_object_attach_property(&crtc->base, prop, 0);
++	crtc->expected_present_time_property = prop;
++
++	return 0;
++}
++EXPORT_SYMBOL(drm_crtc_create_expected_present_time_property);
+diff --git a/drivers/gpu/drm/stm/ltdc.c b/drivers/gpu/drm/stm/ltdc.c
+index 2be0b1a4898f5..722573bee2b28 100644
+--- a/drivers/gpu/drm/stm/ltdc.c
++++ b/drivers/gpu/drm/stm/ltdc.c
+@@ -1166,15 +1166,45 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
+ 	}
+ }
+ 
++#define RESERVED_TIME_FOR_KICKOFF_NS		3500000
++static void ltdc_crtc_wait_earliest_process_time(
++		const struct drm_crtc_state *crtc_state)
++{
++	ktime_t earliest_process_time, now;
++
++	if (ktime_compare(crtc_state->expected_present_time,
++			  RESERVED_TIME_FOR_KICKOFF_NS) <= 0)
++		return;
++
++	earliest_process_time = ktime_sub_ns(crtc_state->expected_present_time,
++					     RESERVED_TIME_FOR_KICKOFF_NS);
++	now = ktime_get();
++
++	if (ktime_after(earliest_process_time, now)) {
++		int32_t vrefresh = drm_mode_vrefresh(&crtc_state->mode);
++		int32_t max_delay_us = mult_frac(10000, 1000, vrefresh); // 10 * vsync period
++		int32_t delay_until_process;
++
++		delay_until_process = (int32_t)ktime_us_delta(earliest_process_time, now);
++		if (delay_until_process > max_delay_us) {
++			printk(KERN_WARNING "expected present time seems incorrect(now %llu, earliest %llu)\n",
++				now, earliest_process_time);
++		}
++		usleep_range(delay_until_process, delay_until_process + 10);
++	}
++}
++
+ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
+ 				   struct drm_atomic_state *state)
+ {
+ 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+ 	struct drm_device *ddev = crtc->dev;
+ 	struct drm_pending_vblank_event *event = crtc->state->event;
++	struct drm_crtc_state *new_crtc_state = crtc->state;
+ 
+ 	DRM_DEBUG_ATOMIC("\n");
+ 
++	ltdc_crtc_wait_earliest_process_time(new_crtc_state);
+ 	/* Commit shadow registers = update planes at next vblank */
+ 	if (!ldev->caps.plane_reg_shadow)
+ 		regmap_set_bits(ldev->regmap, LTDC_SRCR, SRCR_VBR);
+@@ -2061,6 +2091,8 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
+ 							   supported_rotations);
+ 	}
+ 
++	drm_crtc_create_expected_present_time_property(crtc);
++
+ 	return 0;
+ 
+ cleanup:
+diff --git a/include/drm/drm_crtc.h b/include/drm/drm_crtc.h
+index 8e1cbc75143ef..6bdb51212818c 100644
+--- a/include/drm/drm_crtc.h
++++ b/include/drm/drm_crtc.h
+@@ -211,6 +211,8 @@ struct drm_crtc_state {
+ 	 */
+ 	u32 encoder_mask;
+ 
++	u64 expected_present_time;
++
+ 	/**
+ 	 * @adjusted_mode:
+ 	 *
+@@ -1093,6 +1095,8 @@ struct drm_crtc {
+ 	 */
+ 	struct drm_property *scaling_filter_property;
+ 
++	struct drm_property *expected_present_time_property;
++
+ 	/**
+ 	 * @state:
+ 	 *
+@@ -1328,5 +1332,6 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
+ 
+ int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
+ 					    unsigned int supported_filters);
++int drm_crtc_create_expected_present_time_property(struct drm_crtc *crtc);
+ 
+ #endif /* __DRM_CRTC_H__ */
+-- 
+2.34.1
+

@@ -19,13 +19,13 @@
 #######################################
 # Constants
 #######################################
-SCRIPT_VERSION="1.1"
+SCRIPT_VERSION="1.2"
 
-SOC_FAMILY="stm32mp1"
-SOC_NAME="stm32mp15"
-SOC_VERSION="stm32mp157c"
+SOC_FAMILY="stm32mp2"
+SOC_NAME="stm32mp25"
+SOC_VERSION="stm32mp257c"
 
-KERNEL_VERSION=5.4
+KERNEL_VERSION=6.1
 
 if [ -n "${ANDROID_BUILD_TOP+1}" ]; then
   TOP_PATH=${ANDROID_BUILD_TOP}
@@ -52,6 +52,9 @@ KERNEL_CONFIG_STATUS_PATH="${COMMON_PATH}/configs/kernel.config"
 nb_states=2
 force_load=0
 msg_patch=0
+
+# By default redirect stdout and stderr to /dev/null
+redirect_out="/dev/null"
 
 #######################################
 # Functions
@@ -91,6 +94,7 @@ usage()
   echo "  -h / --help: print this message"
   echo "  -v / --version: get script version"
   echo "  -f / --force: force kernel load"
+  echo "  --verbose: add script verbosity"
   empty_line
 }
 
@@ -250,7 +254,7 @@ apply_patch()
     loc_patch_path+=".patch"
   fi
 
-  \git am ${loc_patch_path} &> /dev/null
+  \git am ${loc_patch_path} &>${redirect_out}
   if [ $? -ne 0 ]; then
     error "Not possible to apply patch ${loc_patch_path}, please review android_kernel.config"
     teardown "ERROR"
@@ -290,6 +294,9 @@ while getopts "hvf-:" option; do
           ;;
         force)
           force_load=1
+          ;;
+        verbose)
+          redirect_out="/dev/stdout"
           ;;
         *)
           usage
@@ -362,16 +369,16 @@ while IFS='' read -r line || [[ -n $line ]]; do
 
     unset kernel_value
     kernel_value=($(echo $line | awk '{ print $1 }'))
-        
+
     case ${kernel_value} in
       "GIT_PATH" )
         git_path=($(echo $line | awk '{ print $2 }'))
         state "Loading Kernel source (it can take several minutes)"
 
         if [ -n "${KERNEL_CACHE_DIR+1}" ]; then
-          \git clone --reference ${KERNEL_CACHE_DIR} ${git_path} ${kernel_path}  >/dev/null 2>&1
+          \git clone -v --reference ${KERNEL_CACHE_DIR} ${git_path} ${kernel_path}  &>${redirect_out}
         else
-          \git clone ${git_path} ${kernel_path}  >/dev/null 2>&1
+          \git clone -v  ${git_path} ${kernel_path} &>${redirect_out}
         fi
 
         if [ $? -ne 0 ]; then
@@ -383,7 +390,7 @@ while IFS='' read -r line || [[ -n $line ]]; do
       "GIT_SHA1" )
         git_sha1=($(echo $line | awk '{ print $2 }'))
         \pushd ${kernel_path}  >/dev/null 2>&1
-        \git checkout ${git_sha1} &> /dev/null
+        \git checkout ${git_sha1} &>${redirect_out}
         if [ $? -ne 0 ]; then
           error "Not possible to checkout ${git_sha1} for ${git_path}"
           teardown "ERROR"

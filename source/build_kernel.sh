@@ -19,15 +19,18 @@
 #######################################
 # Constants
 #######################################
-SCRIPT_VERSION="1.6"
+SCRIPT_VERSION="1.7"
 
-SOC_FAMILY="stm32mp1"
-SOC_NAME="stm32mp15"
-SOC_VERSIONS=( "stm32mp157c" "stm32mp157f" )
+SOC_FAMILY="stm32mp2"
+SOC_NAME="stm32mp25"
+SOC_VERSIONS=( "stm32mp257f" )
 
-KERNEL_VERSION=5.4
-KERNEL_ARCH=arm
-GCC_TOOLCHAIN=gcc-arm-9.2-2019.12-x86_64-arm-none-eabi
+# TODO: remove after REVA obsolete
+# Add SOC revision if any (ex: REVA)
+SOC_REV="REVB"
+
+KERNEL_VERSION=6.1
+KERNEL_ARCH=arm64
 
 if [ -n "${ANDROID_BUILD_TOP+1}" ]; then
   TOP_PATH=${ANDROID_BUILD_TOP}
@@ -47,11 +50,8 @@ KERNEL_PREBUILT_PATH=${TOP_PATH}/device/stm/${SOC_FAMILY}-kernel/prebuilt
 
 KERNEL_MERGE_CONFIG=mergeconfig.sh
 
-GCC_CROSS_COMPILE_PATH=${TOP_PATH}/prebuilts/gcc/linux-x86/arm/${GCC_TOOLCHAIN}/bin
-GCC_CROSS_COMPILE=arm-eabi-
-
-CLANG_CROSS_COMPILE=arm-linux-androidkernel-
-CLANG_CC_OPTIONS="CLANG_TRIPLE=arm-linux-gnueabi- CC=clang"
+LLVM_OPTION="LLVM=1 LLVM_IAS=1"
+LLVM_TOOLCHAIN=llvm-
 
 KERNEL_OUT=${TOP_PATH}/out-bsp/${SOC_FAMILY}/KERNEL_OBJ
 
@@ -76,13 +76,11 @@ do_onlymodulesinstall=0
 do_onlyvmlinux=0
 do_full=0
 do_gdb=0
-do_debug=0
+do_kdebug=0
+force_mrproper=0
 force_defaultconfig=0
 
-# use clang by default
-use_gcc=0
-kernel_cross_compile=${CLANG_CROSS_COMPILE}
-kernel_cc_options=${CLANG_CC_OPTIONS}
+do_debug=0
 
 execute_more=1
 
@@ -94,6 +92,9 @@ kernel_soc_fragment=
 kernel_debug_fragment=
 kernel_user_fragment=
 kernel_board_fragment=
+
+# TODO: remove after REVA obsolete
+kernel_reva_fragment="stm32mp2_reva.fragment"
 
 kernel_gpu_name=
 kernel_gpu_src=
@@ -151,7 +152,6 @@ usage()
   echo "  -d <val>/--debug=<val>: if <val>=1; integrate debug kernel configuration (default for userdebug or eng build variant)"
   echo "                          if <val>=0; remove debug kernel configuration (default for user build variant)"
   echo "  -g/--gdb: generate vmlinux (kernel incl. symbols) and don't strip generated modules (keep symbols)"
-  echo "  --gcc: use gcc toolchain instead of clang (bspsetup shall be executed before)"
   echo "  --verbose=<level>: enable verbosity (1 or 2 depending on level of verbosity required)"
   echo "Command: only one command at a time supported"
   echo "  dtb: build only device-tree binaries"
@@ -233,6 +233,22 @@ green()
 clear_line()
 {
   echo -ne "\033[2K"
+}
+
+#######################################
+# Print debug message in green
+# Globals:
+#   None
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+debug()
+{
+  if [[ ${do_debug} == 1 ]]; then
+    echo "$(tput setaf 2)DEBUG: $1$(tput sgr0)"
+  fi
 }
 
 #######################################
@@ -373,7 +389,6 @@ extract_buildconfig()
 #   I kernel_user_fragment
 #   I kernel_soc_fragment
 #   I kernel_board_fragment
-#   I kernel_cross_compile
 #   I KERNEL_SOURCE_PATH
 #   I KERNEL_VERSION
 #   I KERNEL_OUT
@@ -397,11 +412,21 @@ generate_config()
     exit 1
   fi
 
-  # Merge .config and .config.required with fragments and SoC configuration for Android
-  if [[ ${do_debug} == 1 ]]; then
-    ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${kernel_cross_compile} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_debug_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+  # TODO: remove after REVA obsolete
+  if [[ ${SOC_REV} == "REVA" ]]; then
+    # Merge .config and .config.required with fragments and SoC configuration for Android
+    if [[ ${do_kdebug} == 1 ]]; then
+      ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_reva_fragment} ${l_config_path}/${kernel_debug_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+    else
+      ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_reva_fragment} ${l_config_path}/${kernel_user_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+    fi
   else
-    ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${kernel_cross_compile} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_user_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+    # Merge .config and .config.required with fragments and SoC configuration for Android
+    if [[ ${do_kdebug} == 1 ]]; then
+      ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_debug_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+    else
+      ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_user_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
+    fi
   fi
   green "  => mergeconfig logs added in ${KERNEL_OUT}/mergeconfig.log"
 
@@ -410,7 +435,7 @@ generate_config()
   generate_kernel savedefconfig
   mv ${KERNEL_OUT}/defconfig ${KERNEL_OUT}/defconfig.default
 
-  if [[ ${do_debug} == 1 ]]; then
+  if [[ ${do_kdebug} == 1 ]]; then
     echo "DEBUG ENABLED" > ${KERNEL_OUT}/build.config
   else
     echo "DEBUG DISABLED" > ${KERNEL_OUT}/build.config
@@ -421,7 +446,8 @@ generate_config()
 # Check last build config
 # Globals:
 #   I KERNEL_OUT
-#   I do_debug
+#   I do_kdebug
+#   O force_mrproper
 #   O force_defaultconfig
 # Arguments:
 #   None
@@ -430,15 +456,20 @@ generate_config()
 #######################################
 check_buildconfig()
 {
+  force_mrproper=0
   force_defaultconfig=0
   if [[ -f $KERNEL_OUT/build.config ]]; then
     build_config=`grep "DEBUG" $KERNEL_OUT/build.config`
-    if [[ ${build_config} =~ "ENABLED" ]] && [[ ${do_debug} == 0 ]]; then
+    if [[ ${build_config} =~ "ENABLED" ]] && [[ ${do_kdebug} == 0 ]]; then
+      force_mrproper=1
       force_defaultconfig=1
-    elif [[ ${build_config} =~ "DISABLED" ]] && [[ ${do_debug} == 1 ]]; then
+    elif [[ ${build_config} =~ "DISABLED" ]] && [[ ${do_kdebug} == 1 ]]; then
+      force_mrproper=1
       force_defaultconfig=1
     fi
   else
+    # unclear status, clean in case
+    force_mrproper=1
     force_defaultconfig=1
   fi
 }
@@ -464,8 +495,6 @@ clean_kernel_out()
 #   I KERNEL_OUT
 #   I KERNEL_ARCH
 #   I BOARD_FLAVOUR_LIST
-#   I kernel_cross_compile
-#   I kernel_cc_options
 #   I dtc_flags
 #   I force
 # Arguments:
@@ -478,7 +507,7 @@ clean_kernel_out()
 #                  mrproper
 #                  savedefconfig
 #                  vmlinux
-#                  zImage
+#                  Image
 # Returns:
 #   None
 #######################################
@@ -494,7 +523,8 @@ generate_kernel()
     done
   done
 
-  \make ${verbose} -j8 -C ${kernel_src} O=${KERNEL_OUT} ${modulesinstall_param} ARCH="${KERNEL_ARCH}" ${kernel_cc_options} CROSS_COMPILE=${kernel_cross_compile} ${force} ${dtc_flags} $1 &>${redirect_out}
+  debug "make ${verbose} -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${modulesinstall_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1"
+  \make ${verbose} -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${modulesinstall_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1 &>${redirect_out}
   if [ $? -ne 0 ]; then
     error "Not possible to generate the kernel image"
     popd >/dev/null 2>&1
@@ -509,8 +539,6 @@ generate_kernel()
 #   I kernel_gpu_src
 #   I KERNEL_OUT
 #   I KERNEL_ARCH
-#   I kernel_cross_compile
-#   I kernel_cc_options
 # Arguments:
 #   None
 # Returns:
@@ -523,7 +551,8 @@ generate_gpu_driver()
   \find ${KERNEL_OUT}/${kernel_gpu_name} -type l -exec rm {} +
   \cp -prs ${kernel_gpu_src}/* ${KERNEL_OUT}/${kernel_gpu_name}
   # Build GPU driver (add DEBUG=1 if debug required)
-  \make ${verbose} -C ${KERNEL_OUT}/${kernel_gpu_name} O=${KERNEL_OUT} KERNEL_DIR=${KERNEL_OUT} ${kernel_cc_options} CROSS_COMPILE=${kernel_cross_compile} ARCH_TYPE=${KERNEL_ARCH} all SOC_PLATFORM=st-st &>${redirect_out} VIVANTE_ENABLE_DRM=1
+  debug "make ${verbose} -C ${KERNEL_OUT}/${kernel_gpu_name} O=${KERNEL_OUT} ${LLVM_OPTION} CROSS_COMPILE=aarch64-none-linux-gnu- KERNEL_DIR=${KERNEL_OUT} ARCH_TYPE=${KERNEL_ARCH} all SOC_PLATFORM=st-mp2 VIVANTE_ENABLE_DRM=1"
+  \make ${verbose} -C ${KERNEL_OUT}/${kernel_gpu_name} O=${KERNEL_OUT} ${LLVM_OPTION} CROSS_COMPILE=aarch64-none-linux-gnu- KERNEL_DIR=${KERNEL_OUT} ARCH_TYPE=${KERNEL_ARCH} all SOC_PLATFORM=st-mp2 VIVANTE_ENABLE_DRM=1 &>${redirect_out}
   if [ $? -ne 0 ]; then
     error "Not possible to generate gpu driver module"
     popd >/dev/null 2>&1
@@ -538,8 +567,6 @@ generate_gpu_driver()
 #   I kernel_wifi_src
 #   I KERNEL_OUT
 #   I KERNEL_ARCH
-#   I kernel_cross_compile
-#   I kernel_cc_options
 # Arguments:
 #   None
 # Returns:
@@ -552,7 +579,8 @@ generate_wifi_driver()
   \find ${KERNEL_OUT}/${kernel_wifi_name} -type l -exec rm {} +
   \cp -prs ${kernel_wifi_src}/* ${KERNEL_OUT}/${kernel_wifi_name}
   # Build WIFI driver
-  \make ${verbose} -C ${KERNEL_OUT}/${kernel_wifi_name} O=${KERNEL_OUT} KSRC=${KERNEL_OUT} ${kernel_cc_options} CROSS_COMPILE=${kernel_cross_compile} ARCH=${KERNEL_ARCH} &>${redirect_out}
+  debug "make ${verbose} -C ${KERNEL_OUT}/${kernel_wifi_name} O=${KERNEL_OUT} KSRC=${KERNEL_OUT} ${LLVM_OPTION} ARCH=${KERNEL_ARCH}"
+  \make ${verbose} -C ${KERNEL_OUT}/${kernel_wifi_name} O=${KERNEL_OUT} KSRC=${KERNEL_OUT} ${LLVM_OPTION} ARCH=${KERNEL_ARCH} &>${redirect_out}
   if [ $? -ne 0 ]; then
     error "Not possible to generate wifi driver module"
     popd >/dev/null 2>&1
@@ -577,10 +605,10 @@ fi
 # force debug option by default if userdebug or eng build
 if [ -n "${TARGET_BUILD_VARIANT+1}" ]; then
   if [ "${TARGET_BUILD_VARIANT}" == "user" ]; then
-    do_debug=0
+    do_kdebug=0
   else
     # echo "debug (-d) option forced for ${TARGET_BUILD_VARIANT} build variant"
-    do_debug=1
+    do_kdebug=1
   fi
 fi
 
@@ -611,11 +639,6 @@ while getopts "hvid:g-:" option; do
                     if [ ${verbose_level} == 2 ];then
                         verbose=
                     fi
-                    ;;
-                gcc)
-                    use_gcc=1
-                    kernel_cross_compile=${GCC_CROSS_COMPILE_PATH}/${GCC_CROSS_COMPILE}
-                    kernel_cc_options=""
                     ;;
                 install)
                     if [[ ${do_install} == 0 ]]; then
@@ -756,12 +779,6 @@ if [[ ! -f ${KERNEL_SOURCE_PATH}/${KERNEL_BUILDCONFIG} ]]; then
   exit 1
 fi
 
-if [[ use_gcc -eq 1 ]] && [[ ! -d "${GCC_CROSS_COMPILE_PATH}" ]]; then
-  error "Required toolchain ${GCC_TOOLCHAIN} not available, please execute bspsetup"
-  popd >/dev/null 2>&1
-  exit 1
-fi
-
 # Extract Kernel build configuration
 extract_buildconfig
 
@@ -778,9 +795,10 @@ if [ ! -d "${KERNEL_OUT}" ]; then
 fi
 
 # Execute mrproper command if requested, then exit
-if [[ ${do_onlymrproper} == 1 ]]; then
+if [[ ${do_onlymrproper} == 1 ]] || [[ ${force_mrproper} == 1 ]]; then
   state "Delete the current configuration, and all generated files for ${SOC_FAMILY}"
   generate_kernel mrproper
+  rm -f ${KERNEL_OUT}/build.config
   popd >/dev/null 2>&1
   exit 0
 fi
@@ -801,8 +819,8 @@ if [[ -f ${KERNEL_OUT}/.config ]]; then
     nb_states=$((nb_states-2))
   fi
 fi
-# Remove 2 states when zImage is present and do not request to regenerate it
-if [[ -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/zImage ]] && [[ ${do_full} == 0 ]] && [[ ${do_onlyvmlinux} == 0 ]] && [[ ${do_onlymenuconfig} == 0 ]] && [[ ${do_onlydefaultconfig} == 0 ]]; then
+# Remove 2 states when Image is present and do not request to regenerate it
+if [[ -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/Image ]] && [[ ${do_full} == 0 ]] && [[ ${do_onlyvmlinux} == 0 ]] && [[ ${do_onlymenuconfig} == 0 ]] && [[ ${do_onlydefaultconfig} == 0 ]]; then
   nb_states=$((nb_states-2))
 fi
 
@@ -845,12 +863,12 @@ fi
 # Build Kernel if required. If only vmlinux command requested, then go to install if needed
 do_execute || {
 
-  if [[ ! -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/zImage ]] || ([[ ${do_onlymodules} == 0 ]] && [[ ${do_onlygpu} == 0 ]]  && [[ ${do_onlywifi} == 0 ]]); then
+  if [[ ! -f ${KERNEL_OUT}/arch/${KERNEL_ARCH}/boot/Image ]] || ([[ ${do_onlymodules} == 0 ]] && [[ ${do_onlygpu} == 0 ]]  && [[ ${do_onlywifi} == 0 ]]); then
 
     state "Generate vmlinux for ${SOC_FAMILY}"
     generate_kernel vmlinux
-    state "Generate zImage for ${SOC_FAMILY}"
-    generate_kernel zImage
+    state "Generate Image for ${SOC_FAMILY}"
+    generate_kernel Image
     if [[ ${do_onlyvmlinux} == 1 ]]; then
       execute_more=0
     fi
@@ -922,14 +940,38 @@ if [[ ${do_install} == 1 ]]; then
     if [[ ${do_onlymodules} == 0 ]] &&  [[ ${do_onlyvmlinux} == 0 ]]; then
       for soc_version in "${SOC_VERSIONS[@]}"
       do
+        if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}" ]; then
+          \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}
+        fi
+        \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}/*
+        debug "cp $(find ${KERNEL_OUT}/ -name "${soc_version}.dtb" -print0 | tr '\0' '\n') ${KERNEL_PREBUILT_PATH}/dts/${soc_version}"
+        \find ${KERNEL_OUT}/ -name "${soc_version}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}
+
+        if [[ ${SOC_REV} == "REVA" ]]; then
+          if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva" ]; then
+            \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva
+          fi
+          \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva/*
+          debug "cp $(find ${KERNEL_OUT}/ -name "${soc_version}-revB.dtb" -print0 | tr '\0' '\n')"
+          \find ${KERNEL_OUT}/ -name "${soc_version}-revB.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva
+        fi
+
         for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
         do
           if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}" ]; then
             \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
           fi
           \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}/*
-          \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
-          \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}-mb1166.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+          \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}-overlay.dtbo" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
+
+          if [[ ${SOC_REV} == "REVA" ]]; then
+            if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva" ]; then
+              \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva
+            fi
+            \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva/*
+            \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}-revB-overlay.dtbo" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva
+          fi
+
         done
       done
     fi
@@ -938,7 +980,7 @@ if [[ ${do_install} == 1 ]]; then
       \rm -f ${KERNEL_PREBUILT_PATH}/modules/*
       \find ${KERNEL_OUT}/ -name "*.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
       if [[ ${do_gdb} == 0 ]]; then
-        ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/*.ko
+        ${LLVM_TOOLCHAIN}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/*.ko
       fi
       if [[ ${do_onlymodulesinstall} == 1 ]]; then
         \find ${KERNEL_OUT}/ -name "modules.dep" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
@@ -948,7 +990,7 @@ if [[ ${do_install} == 1 ]]; then
     if [[ ${do_onlydtb} == 0 ]] && [[ ${do_onlymodules} == 0 ]]; then
       \rm -f ${KERNEL_PREBUILT_PATH}/kernel-*
       \rm -f ${KERNEL_PREBUILT_PATH}/vmlinux-*
-      \find ${KERNEL_OUT}/ -name "zImage" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/kernel-${SOC_FAMILY}
+      \find ${KERNEL_OUT}/ -name "Image" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/kernel-${SOC_FAMILY}
       if [[ ${do_gdb} == 1 ]]; then
         \cp ${KERNEL_OUT}/vmlinux ${KERNEL_PREBUILT_PATH}/vmlinux-${SOC_FAMILY}
       fi
@@ -958,7 +1000,7 @@ if [[ ${do_install} == 1 ]]; then
       if [ -n "${kernel_gpu_name}" ]; then
         \find ${KERNEL_OUT}/ -name "${kernel_gpu_name}.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
         if [[ ${do_gdb} == 0 ]]; then
-          ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_gpu_name}.ko
+          ${LLVM_TOOLCHAIN}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_gpu_name}.ko
         fi
       else
         error "Undefined GPU name in build configuration file"
@@ -968,7 +1010,7 @@ if [[ ${do_install} == 1 ]]; then
       if [ -n "${kernel_wifi_name}" ]; then
         \find ${KERNEL_OUT}/ -name "${kernel_wifi_name}.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
         if [[ ${do_gdb} == 0 ]]; then
-          ${kernel_cross_compile}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_wifi_name}.ko
+          ${LLVM_TOOLCHAIN}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_wifi_name}.ko
         fi
       else
         error "Undefined WIFI name in build configuration file"

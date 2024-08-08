@@ -1,0 +1,166 @@
+From 3d43274cc94fdb39c1d3a2fc3415008936c7d61a Mon Sep 17 00:00:00 2001
+From: Yves COPPEAUX <yves.coppeaux@st.com>
+Date: Wed, 26 Jun 2024 10:26:50 +0200
+Subject: [PATCH 15/23] fix build issues
+
+---
+ drivers/i2c/busses/i2c-stm32f7.c | 18 +++++++++---------
+ drivers/irqchip/irq-rpmsg.c      |  6 +++---
+ drivers/net/phy/smsc.c           |  5 +++--
+ drivers/tee/optee/call.c         |  4 ++--
+ 4 files changed, 17 insertions(+), 16 deletions(-)
+
+diff --git a/drivers/i2c/busses/i2c-stm32f7.c b/drivers/i2c/busses/i2c-stm32f7.c
+index c9109cb822834..1258e9b6d7697 100644
+--- a/drivers/i2c/busses/i2c-stm32f7.c
++++ b/drivers/i2c/busses/i2c-stm32f7.c
+@@ -864,7 +864,7 @@ static void stm32f7_i2c_release_bus(struct i2c_adapter *i2c_adap)
+ static int stm32f7_i2c_wait_free_bus(struct stm32f7_i2c_dev *i2c_dev)
+ {
+ 	u32 status;
+-	int ret;
++	int ret = 0;
+ 
+ 	ret = readl_relaxed_poll_timeout(i2c_dev->base + STM32F7_I2C_ISR,
+ 					 status,
+@@ -884,7 +884,7 @@ static void stm32f7_i2c_xfer_msg(struct stm32f7_i2c_dev *i2c_dev,
+ 	struct stm32f7_i2c_msg *f7_msg = &i2c_dev->f7_msg;
+ 	void __iomem *base = i2c_dev->base;
+ 	u32 cr1, cr2;
+-	int ret;
++	int ret = 0;
+ 
+ 	f7_msg->addr = msg->addr;
+ 	f7_msg->buf = msg->buf;
+@@ -1140,7 +1140,7 @@ static void stm32f7_i2c_smbus_rep_start(struct stm32f7_i2c_dev *i2c_dev)
+ 	struct stm32f7_i2c_msg *f7_msg = &i2c_dev->f7_msg;
+ 	void __iomem *base = i2c_dev->base;
+ 	u32 cr1, cr2;
+-	int ret;
++	int ret = 0;
+ 
+ 	cr2 = readl_relaxed(base + STM32F7_I2C_CR2);
+ 	cr1 = readl_relaxed(base + STM32F7_I2C_CR1);
+@@ -1435,7 +1435,7 @@ static irqreturn_t stm32f7_i2c_slave_isr_event(struct stm32f7_i2c_dev *i2c_dev,
+ 	void __iomem *base = i2c_dev->base;
+ 	u32 cr2, mask;
+ 	u8 val;
+-	int ret;
++	int ret = 0;
+ 
+ 	/* Slave transmitter mode */
+ 	if (i2c_dev->slave_running && (status & STM32F7_I2C_ISR_TXIS)) {
+@@ -1603,7 +1603,7 @@ static irqreturn_t stm32f7_i2c_isr_event_thread(int irq, void *data)
+ 	struct stm32_i2c_dma *dma = i2c_dev->dma;
+ 	void __iomem *base = i2c_dev->base;
+ 	u32 status, mask;
+-	int ret;
++	int ret = 0;
+ 
+ 	status = readl_relaxed(i2c_dev->base + STM32F7_I2C_ISR);
+ 
+@@ -1693,7 +1693,7 @@ static int stm32f7_i2c_xfer(struct i2c_adapter *i2c_adap,
+ 	struct stm32f7_i2c_msg *f7_msg = &i2c_dev->f7_msg;
+ 	struct stm32_i2c_dma *dma = i2c_dev->dma;
+ 	unsigned long time_left;
+-	int ret;
++	int ret = 0;
+ 
+ 	i2c_dev->msg = msgs;
+ 	i2c_dev->msg_num = num;
+@@ -2011,7 +2011,7 @@ static int stm32f7_i2c_setup_fm_plus_bits(struct platform_device *pdev,
+ 					  struct stm32f7_i2c_dev *i2c_dev)
+ {
+ 	struct device_node *np = pdev->dev.of_node;
+-	int ret;
++	int ret = 0;
+ 
+ 	i2c_dev->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg-fmp");
+ 	if (IS_ERR(i2c_dev->regmap))
+@@ -2423,7 +2423,7 @@ static int __maybe_unused stm32f7_i2c_runtime_suspend(struct device *dev)
+ static int __maybe_unused stm32f7_i2c_runtime_resume(struct device *dev)
+ {
+ 	struct stm32f7_i2c_dev *i2c_dev = dev_get_drvdata(dev);
+-	int ret;
++	int ret = 0;
+ 
+ 	if (!stm32f7_i2c_is_slave_registered(i2c_dev)) {
+ 		ret = clk_prepare_enable(i2c_dev->clk);
+@@ -2455,7 +2455,7 @@ static int __maybe_unused stm32f7_i2c_suspend(struct device *dev)
+ static int __maybe_unused stm32f7_i2c_resume(struct device *dev)
+ {
+ 	struct stm32f7_i2c_dev *i2c_dev = dev_get_drvdata(dev);
+-	int ret;
++	int ret = 0;
+ 
+ 	ret = pm_runtime_force_resume(dev);
+ 	if (ret < 0)
+diff --git a/drivers/irqchip/irq-rpmsg.c b/drivers/irqchip/irq-rpmsg.c
+index f0f15ccb9ff93..02ec69ed5e450 100644
+--- a/drivers/irqchip/irq-rpmsg.c
++++ b/drivers/irqchip/irq-rpmsg.c
+@@ -143,7 +143,7 @@ static int irq_rpmsg_read_val(struct rpmsg_irq_dev *rirq_dev,
+ 			      struct rpmsg_intc_msg *msg)
+ {
+ 	struct rpmsg_device *rpdev = rirq_dev->rpdev;
+-	int ret;
++	int ret = 0;
+ 
+ 	init_completion(&rirq_dev->complete);
+ 	ret = rpmsg_send(rpdev->ept, msg, sizeof(struct rpmsg_intc_msg));
+@@ -162,7 +162,7 @@ static void irq_rpmsg_setup_work(struct work_struct *ws)
+ 						      irqrpmsg_work);
+ 	struct rpmsg_device *rpdev = rirq_dev->rpdev;
+ 	struct rpmsg_intc_msg msg = {VIRT_INTC_CFG, 0, 0};
+-	int ret;
++	int ret = 0;
+ 
+ 	ret = irq_rpmsg_read_val(rirq_dev, &msg);
+ 	if (ret) {
+@@ -245,7 +245,7 @@ static int irq_rpmsg_plat_probe(struct platform_device *pdev)
+ {
+ 	struct device *dev = &pdev->dev;
+ 	struct rpmsg_irq_dev *rirq_dev;
+-	int ret;
++	int ret = 0;
+ 
+ 	rirq_dev = devm_kcalloc(dev, 1, sizeof(*rirq_dev), GFP_KERNEL);
+ 	if (!rirq_dev)
+diff --git a/drivers/net/phy/smsc.c b/drivers/net/phy/smsc.c
+index 0d08f1739f3c9..d663f8a78a79d 100644
+--- a/drivers/net/phy/smsc.c
++++ b/drivers/net/phy/smsc.c
+@@ -107,12 +107,13 @@ static int smsc_phy_config_wol(struct phy_device *phydev)
+ {
+ 	int i, wol_ctrl, wol_filter;
+ 	u16 pwd[3] = {0, 0, 0};
+-
++	const u8 *mac_addr = NULL;
+ 	if (!phydev->attached_dev)
+ 		return -ENODEV;
+ 
+ 	/* Write @MAC in LAN8742_MMD3_MAC_ADDRA/B/C registers */
+-	const u8 *mac_addr = phydev->attached_dev->dev_addr;
++	/* const u8 *mac_addr = phydev->attached_dev->dev_addr; */
++	mac_addr = phydev->attached_dev->dev_addr;
+ 	/* Store the device address for the magic packet */
+ 	for (i = 0; i < ARRAY_SIZE(pwd); i++)
+ 		pwd[i] = mac_addr[5 - i * 2] << 8 | mac_addr[5 - (i * 2 + 1)];
+diff --git a/drivers/tee/optee/call.c b/drivers/tee/optee/call.c
+index b4db5af8368e8..cf1a66dea7077 100644
+--- a/drivers/tee/optee/call.c
++++ b/drivers/tee/optee/call.c
+@@ -430,8 +430,8 @@ int optee_invoke_func_helper(struct tee_context *ctx,
+ 	struct optee_call_extra call_extra;
+ 	struct optee_msg_arg *msg_arg;
+ 	struct optee_session *sess;
+-	struct tee_shm *shm;
+-	u_int offs;
++	struct tee_shm *shm = NULL;
++	u_int offs = 0;
+ 	int rc;
+ 	u32 session_id;
+ 
+-- 
+2.34.1
+

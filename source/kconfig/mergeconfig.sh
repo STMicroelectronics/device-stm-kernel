@@ -20,15 +20,13 @@ array=( "$@" )
 KERNEL_PATH=${array[0]}
 OUTPUT=${array[1]}
 TARGET_ARCH=${array[2]}
-TARGET_CROSS_COMPILE=${array[3]}
 
 unset "array[0]"
 unset "array[1]"
 unset "array[2]"
-unset "array[3]"
 
 cd $KERNEL_PATH
 
 # Merge .config with fragments
 # Force CONFIG_LSM default config (depends on choice which is not well managed in merge script)
-ARCH=$TARGET_ARCH CROSS_COMPILE=$TARGET_CROSS_COMPILE ./scripts/kconfig/merge_config.sh -d CONFIG_LSM -C arm-linux-gnueabi- -O $OUTPUT ${array[*]}
+ARCH=$TARGET_ARCH ./scripts/kconfig/merge_config.sh -d CONFIG_LSM -C -O $OUTPUT ${array[*]}

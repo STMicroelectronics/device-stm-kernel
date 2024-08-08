@@ -1,0 +1,27 @@
+From 1ee518fac85e1c6095cc47b6006ecfbc166768a0 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Tue, 24 Oct 2023 17:13:20 +0200
+Subject: [PATCH 10/23] Android: GKI: remove GKI module protection
+
+Waiting correct integration of GKI module loading, the protection mechanism is removed
+
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+---
+ arch/arm64/configs/gki_defconfig | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index 05b3b181215b8..8b729a55dc31d 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -99,7 +99,6 @@ CONFIG_MODULE_UNLOAD=y
+ CONFIG_MODVERSIONS=y
+ CONFIG_MODULE_SCMVERSION=y
+ CONFIG_MODULE_SIG=y
+-CONFIG_MODULE_SIG_PROTECT=y
+ CONFIG_MODPROBE_PATH="/system/bin/modprobe"
+ CONFIG_BLK_DEV_ZONED=y
+ CONFIG_BLK_DEV_THROTTLING=y
+-- 
+2.34.1
+
