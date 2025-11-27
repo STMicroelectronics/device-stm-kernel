@@ -1,0 +1,58 @@
+From 469e1a3143f91882a01d7ec71c96ecc54e374f2b Mon Sep 17 00:00:00 2001
+From: Yves COPPEAUX <yves.coppeaux@st.com>
+Date: Wed, 11 Oct 2023 11:52:52 +0200
+Subject: [PATCH 07/33] regulator:stm32: allow the option of building as module
+ (BSPv5.0.0))
+
+---
+ drivers/regulator/Kconfig                            | 2 +-
+ drivers/regulator/Makefile                           | 2 +-
+ drivers/regulator/{stm32-pwr.c => stm32-regulator.c} | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+ rename drivers/regulator/{stm32-pwr.c => stm32-regulator.c} (99%)
+
+diff --git a/drivers/regulator/Kconfig b/drivers/regulator/Kconfig
+index b618e663800b8..b9ebb9d0f24c1 100644
+--- a/drivers/regulator/Kconfig
++++ b/drivers/regulator/Kconfig
+@@ -1255,7 +1255,7 @@ config REGULATOR_STM32_VREFBUF
+ 	  will be called stm32-vrefbuf.
+ 
+ config REGULATOR_STM32_PWR
+-	bool "STMicroelectronics STM32 PWR"
++	tristate "STMicroelectronics STM32 PWR"
+ 	depends on ARCH_STM32 || COMPILE_TEST
+ 	help
+ 	  This driver supports internal regulators (1V1, 1V8, 3V3) in the
+diff --git a/drivers/regulator/Makefile b/drivers/regulator/Makefile
+index c7f39423158a9..1324bbdd8f4be 100644
+--- a/drivers/regulator/Makefile
++++ b/drivers/regulator/Makefile
+@@ -148,7 +148,7 @@ obj-$(CONFIG_REGULATOR_SLG51000) += slg51000-regulator.o
+ obj-$(CONFIG_REGULATOR_SM5703) += sm5703-regulator.o
+ obj-$(CONFIG_REGULATOR_STM32_BOOSTER) += stm32-booster.o
+ obj-$(CONFIG_REGULATOR_STM32_VREFBUF) += stm32-vrefbuf.o
+-obj-$(CONFIG_REGULATOR_STM32_PWR) += stm32-pwr.o
++obj-$(CONFIG_REGULATOR_STM32_PWR) += stm32-regulator.o
+ obj-$(CONFIG_REGULATOR_STPMIC1) += stpmic1_regulator.o
+ obj-$(CONFIG_REGULATOR_STW481X_VMMC) += stw481x-vmmc.o
+ obj-$(CONFIG_REGULATOR_SY7636A) += sy7636a-regulator.o
+diff --git a/drivers/regulator/stm32-pwr.c b/drivers/regulator/stm32-regulator.c
+similarity index 99%
+rename from drivers/regulator/stm32-pwr.c
+rename to drivers/regulator/stm32-regulator.c
+index 87f160d2b4615..d66e1b4a32a1d 100644
+--- a/drivers/regulator/stm32-pwr.c
++++ b/drivers/regulator/stm32-regulator.c
+@@ -249,7 +249,7 @@ static struct platform_driver stm32_pwr_driver = {
+ 		.of_match_table = of_match_ptr(stm32_pwr_of_match),
+ 	},
+ };
+-module_platform_driver(stm32_pwr_driver);
++builtin_platform_driver(stm32_pwr_driver);
+ 
+ MODULE_DESCRIPTION("STM32MP1 PWR voltage regulator driver");
+ MODULE_AUTHOR("Pascal Paillet <p.paillet@st.com>");
+-- 
+2.34.1
+

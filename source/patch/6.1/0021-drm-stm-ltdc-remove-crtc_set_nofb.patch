@@ -1,0 +1,305 @@
+From 3f63934b4b17041ccd540b237496d2d4c9929297 Mon Sep 17 00:00:00 2001
+From: Yves COPPEAUX <yves.coppeaux@st.com>
+Date: Wed, 26 Jun 2024 11:55:42 +0200
+Subject: [PATCH 21/33] drm/stm: ltdc: remove crtc_set_nofb
+
+Crtc_set_nofb callback (optional) is used to update the display
+mode of a CRTC. This callback has been removed & CRTC setup has been
+moved into the @atomic_enable callback.
+
+Change-Id: Iee6090dbc58eaeb0750c7222d6806134e51187f9
+Signed-off-by: Yannick Fertre <yannick.fertre@foss.st.com>
+---
+ drivers/gpu/drm/stm/ltdc.c | 247 ++++++++++++++++---------------------
+ 1 file changed, 104 insertions(+), 143 deletions(-)
+
+diff --git a/drivers/gpu/drm/stm/ltdc.c b/drivers/gpu/drm/stm/ltdc.c
+index b26dcfdddc1ee..eb436f5fcf74b 100644
+--- a/drivers/gpu/drm/stm/ltdc.c
++++ b/drivers/gpu/drm/stm/ltdc.c
+@@ -803,7 +803,10 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
+ 	struct drm_encoder *encoder = NULL, *en_iter;
+ 	struct drm_bridge *bridge = NULL, *br_iter;
+ 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
++	u32 hsync, vsync, accum_hbp, accum_vbp, accum_act_w, accum_act_h;
++	u32 total_width, total_height;
+ 	int orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
++	int rate = mode->clock * 1000;
+ 	u32 bus_formats = MEDIA_BUS_FMT_RGB888_1X24;
+ 	u32 bus_flags = 0;
+ 	u32 pitch, rota0_buf, rota1_buf;
+@@ -845,6 +848,46 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
+ 		orientation = connector->display_info.panel_orientation;
+ 	}
+ 
++	/*
++	 * Set to default state the pinctrl only with DPI type.
++	 * Others types like DSI, don't need pinctrl due to
++	 * internal bridge (the signals do not come out of the chipset).
++	 */
++	switch (encoder->encoder_type) {
++	case DRM_MODE_ENCODER_LVDS:
++		ret = clk_set_parent(ldev->pixel_clk, ldev->lvds_clk);
++		if (ret) {
++			DRM_ERROR("Could not set parent clock: %d\n", ret);
++			return;
++		}
++		break;
++	case DRM_MODE_ENCODER_DPI:
++		pinctrl_pm_select_default_state(ddev->dev);
++		if (ldev->ltdc_clk) {
++			ret = clk_set_parent(ldev->pixel_clk, ldev->ltdc_clk);
++			if (ret) {
++				DRM_ERROR("Could not set parent clock: %d\n", ret);
++				return;
++			}
++		}
++		break;
++	case DRM_MODE_ENCODER_DSI:
++		if (ldev->ltdc_clk) {
++			ret = clk_set_parent(ldev->pixel_clk, ldev->ltdc_clk);
++			if (ret) {
++				DRM_ERROR("Could not set parent clock: %d\n", ret);
++				return;
++			}
++		}
++		break;
++	}
++
++	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
++		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
++		return;
++	}
++
++
+ 	if (!pm_runtime_active(ddev->dev)) {
+ 		ret = pm_runtime_get_sync(ddev->dev);
+ 		if (ret) {
+@@ -853,6 +896,67 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
+ 		}
+ 	}
+ 
++	DRM_DEBUG_DRIVER("CRTC:%d mode:%s\n", crtc->base.id, mode->name);
++	DRM_DEBUG_DRIVER("Video mode: %dx%d", mode->hdisplay, mode->vdisplay);
++	DRM_DEBUG_DRIVER(" hfp %d hbp %d hsl %d vfp %d vbp %d vsl %d\n",
++			 mode->hsync_start - mode->hdisplay,
++			 mode->htotal - mode->hsync_end,
++			 mode->hsync_end - mode->hsync_start,
++			 mode->vsync_start - mode->vdisplay,
++			 mode->vtotal - mode->vsync_end,
++			 mode->vsync_end - mode->vsync_start);
++
++	/* Convert video timings to ltdc timings */
++	hsync = mode->hsync_end - mode->hsync_start - 1;
++	vsync = mode->vsync_end - mode->vsync_start - 1;
++	accum_hbp = mode->htotal - mode->hsync_start - 1;
++	accum_vbp = mode->vtotal - mode->vsync_start - 1;
++	accum_act_w = accum_hbp + mode->hdisplay;
++	accum_act_h = accum_vbp + mode->vdisplay;
++	total_width = mode->htotal - 1;
++	total_height = mode->vtotal - 1;
++
++	/* check that an output rotation is required */
++	if (ldev->caps.crtc_rotation &&
++	    (orientation == DRM_MODE_PANEL_ORIENTATION_LEFT_UP ||
++	     orientation == DRM_MODE_PANEL_ORIENTATION_RIGHT_UP)) {
++		/* Set Synchronization size */
++		val = (vsync << 16) | hsync;
++		regmap_update_bits(ldev->regmap, LTDC_SSCR, SSCR_VSH | SSCR_HSW, val);
++
++		/* Set Accumulated Back porch */
++		val = (accum_vbp << 16) | accum_hbp;
++		regmap_update_bits(ldev->regmap, LTDC_BPCR, BPCR_AVBP | BPCR_AHBP, val);
++
++		/* Set Accumulated Active Width */
++		val = (accum_act_h << 16) | accum_act_w;
++		regmap_update_bits(ldev->regmap, LTDC_AWCR, AWCR_AAW | AWCR_AAH, val);
++
++		/* Set total width & height */
++		val = (total_height << 16) | total_width;
++		regmap_update_bits(ldev->regmap, LTDC_TWCR, TWCR_TOTALH | TWCR_TOTALW, val);
++
++		regmap_write(ldev->regmap, LTDC_LIPCR, (accum_act_w + 1));
++	} else {
++		/* Set Synchronization size */
++		val = (hsync << 16) | vsync;
++		regmap_update_bits(ldev->regmap, LTDC_SSCR, SSCR_VSH | SSCR_HSW, val);
++
++		/* Set Accumulated Back porch */
++		val = (accum_hbp << 16) | accum_vbp;
++		regmap_update_bits(ldev->regmap, LTDC_BPCR, BPCR_AVBP | BPCR_AHBP, val);
++
++		/* Set Accumulated Active Width */
++		val = (accum_act_w << 16) | accum_act_h;
++		regmap_update_bits(ldev->regmap, LTDC_AWCR, AWCR_AAW | AWCR_AAH, val);
++
++		/* Set total width & height */
++		val = (total_width << 16) | total_height;
++		regmap_update_bits(ldev->regmap, LTDC_TWCR, TWCR_TOTALH | TWCR_TOTALW, val);
++
++		regmap_write(ldev->regmap, LTDC_LIPCR, (accum_act_h + 1));
++	}
++
+ 	/* Configures the HS, VS, DE and PC polarities. Default Active Low */
+ 	val = 0;
+ 
+@@ -1031,148 +1135,6 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
+ 	mutex_unlock(&ldev->err_lock);
+ }
+ 
+-static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
+-{
+-	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+-	struct drm_device *ddev = crtc->dev;
+-	struct drm_connector_list_iter iter;
+-	struct drm_connector *connector = NULL;
+-	struct drm_encoder *encoder = NULL, *en_iter;
+-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+-	int orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+-	int rate = mode->clock * 1000;
+-	u32 hsync, vsync, accum_hbp, accum_vbp, accum_act_w, accum_act_h;
+-	u32 total_width, total_height;
+-	u32 val;
+-	int ret;
+-
+-	DRM_DEBUG_DRIVER("\n");
+-
+-	/* disable to stream frame if previous session is still alive */
+-	if (pm_runtime_active(ddev->dev)) {
+-		regmap_clear_bits(ldev->regmap, LTDC_GCR, GCR_LTDCEN);
+-		pm_runtime_put_sync_suspend(ddev->dev);
+-	}
+-
+-	/* get encoder from crtc */
+-	drm_for_each_encoder(en_iter, ddev)
+-		if (en_iter->crtc == crtc) {
+-			encoder = en_iter;
+-			break;
+-		}
+-
+-	if (encoder) {
+-		/* Get the connector from encoder */
+-		drm_connector_list_iter_begin(ddev, &iter);
+-		drm_for_each_connector_iter(connector, &iter)
+-			if (connector->encoder == encoder)
+-				break;
+-		drm_connector_list_iter_end(&iter);
+-	}
+-
+-	if (connector)
+-		orientation = connector->display_info.panel_orientation;
+-
+-	if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
+-		if (ldev->lvds_clk) {
+-			ret = clk_set_parent(ldev->pixel_clk, ldev->lvds_clk);
+-			if (ret) {
+-				DRM_ERROR("Could not set parent clock: %d\n", ret);
+-				return;
+-			}
+-		}
+-	} else {
+-		if (ldev->ltdc_clk) {
+-			ret = clk_set_parent(ldev->pixel_clk, ldev->ltdc_clk);
+-			if (ret) {
+-				DRM_ERROR("Could not set parent clock: %d\n", ret);
+-				return;
+-			}
+-		}
+-	}
+-
+-	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
+-		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
+-		return;
+-	}
+-
+-	/*
+-	 * Set to default state the pinctrl only with DPI type.
+-	 * Others types like DSI, don't need pinctrl due to
+-	 * internal bridge (the signals do not come out of the chipset).
+-	 */
+-	if (encoder->encoder_type == DRM_MODE_ENCODER_DPI)
+-		pinctrl_pm_select_default_state(ddev->dev);
+-	else
+-		pinctrl_pm_select_sleep_state(ddev->dev);
+-
+-	ret = pm_runtime_get_sync(ddev->dev);
+-	if (ret) {
+-		DRM_ERROR("Failed to set mode, cannot get sync\n");
+-		return;
+-	}
+-
+-	DRM_DEBUG_DRIVER("CRTC:%d mode:%s\n", crtc->base.id, mode->name);
+-	DRM_DEBUG_DRIVER("Video mode: %dx%d", mode->hdisplay, mode->vdisplay);
+-	DRM_DEBUG_DRIVER(" hfp %d hbp %d hsl %d vfp %d vbp %d vsl %d\n",
+-			 mode->hsync_start - mode->hdisplay,
+-			 mode->htotal - mode->hsync_end,
+-			 mode->hsync_end - mode->hsync_start,
+-			 mode->vsync_start - mode->vdisplay,
+-			 mode->vtotal - mode->vsync_end,
+-			 mode->vsync_end - mode->vsync_start);
+-
+-	/* Convert video timings to ltdc timings */
+-	hsync = mode->hsync_end - mode->hsync_start - 1;
+-	vsync = mode->vsync_end - mode->vsync_start - 1;
+-	accum_hbp = mode->htotal - mode->hsync_start - 1;
+-	accum_vbp = mode->vtotal - mode->vsync_start - 1;
+-	accum_act_w = accum_hbp + mode->hdisplay;
+-	accum_act_h = accum_vbp + mode->vdisplay;
+-	total_width = mode->htotal - 1;
+-	total_height = mode->vtotal - 1;
+-
+-	/* check that an output rotation is required */
+-	if (ldev->caps.crtc_rotation &&
+-	    (orientation == DRM_MODE_PANEL_ORIENTATION_LEFT_UP ||
+-	     orientation == DRM_MODE_PANEL_ORIENTATION_RIGHT_UP)) {
+-		/* Set Synchronization size */
+-		val = (vsync << 16) | hsync;
+-		regmap_update_bits(ldev->regmap, LTDC_SSCR, SSCR_VSH | SSCR_HSW, val);
+-
+-		/* Set Accumulated Back porch */
+-		val = (accum_vbp << 16) | accum_hbp;
+-		regmap_update_bits(ldev->regmap, LTDC_BPCR, BPCR_AVBP | BPCR_AHBP, val);
+-
+-		/* Set Accumulated Active Width */
+-		val = (accum_act_h << 16) | accum_act_w;
+-		regmap_update_bits(ldev->regmap, LTDC_AWCR, AWCR_AAW | AWCR_AAH, val);
+-
+-		/* Set total width & height */
+-		val = (total_height << 16) | total_width;
+-		regmap_update_bits(ldev->regmap, LTDC_TWCR, TWCR_TOTALH | TWCR_TOTALW, val);
+-
+-		regmap_write(ldev->regmap, LTDC_LIPCR, (accum_act_w + 1));
+-	} else {
+-		/* Set Synchronization size */
+-		val = (hsync << 16) | vsync;
+-		regmap_update_bits(ldev->regmap, LTDC_SSCR, SSCR_VSH | SSCR_HSW, val);
+-
+-		/* Set Accumulated Back porch */
+-		val = (accum_hbp << 16) | accum_vbp;
+-		regmap_update_bits(ldev->regmap, LTDC_BPCR, BPCR_AVBP | BPCR_AHBP, val);
+-
+-		/* Set Accumulated Active Width */
+-		val = (accum_act_w << 16) | accum_act_h;
+-		regmap_update_bits(ldev->regmap, LTDC_AWCR, AWCR_AAW | AWCR_AAH, val);
+-
+-		/* Set total width & height */
+-		val = (total_width << 16) | total_height;
+-		regmap_update_bits(ldev->regmap, LTDC_TWCR, TWCR_TOTALH | TWCR_TOTALW, val);
+-
+-		regmap_write(ldev->regmap, LTDC_LIPCR, (accum_act_h + 1));
+-	}
+-}
+ 
+ #define RESERVED_TIME_FOR_KICKOFF_NS		3500000
+ static void ltdc_crtc_wait_earliest_process_time(
+@@ -1297,7 +1259,6 @@ static bool ltdc_crtc_get_scanout_position(struct drm_crtc *crtc,
+ }
+ 
+ static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+-	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
+ 	.atomic_flush = ltdc_crtc_atomic_flush,
+ 	.atomic_enable = ltdc_crtc_atomic_enable,
+ 	.atomic_disable = ltdc_crtc_atomic_disable,
+-- 
+2.34.1
+

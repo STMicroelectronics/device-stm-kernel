@@ -19,15 +19,11 @@
 #######################################
 # Constants
 #######################################
-SCRIPT_VERSION="1.7"
+SCRIPT_VERSION="1.8"
 
 SOC_FAMILY="stm32mp2"
 SOC_NAME="stm32mp25"
 SOC_VERSIONS=( "stm32mp257f" )
-
-# TODO: remove after REVA obsolete
-# Add SOC revision if any (ex: REVA)
-SOC_REV="REVB"
 
 KERNEL_VERSION=6.1
 KERNEL_ARCH=arm64
@@ -56,8 +52,8 @@ LLVM_TOOLCHAIN=llvm-
 KERNEL_OUT=${TOP_PATH}/out-bsp/${SOC_FAMILY}/KERNEL_OBJ
 
 # Board name and flavour shall be listed in associated order
-BOARD_NAME_LIST=( "eval" )
-BOARD_FLAVOUR_LIST=( "ev1" )
+BOARD_NAME_LIST=( "eval" "dk" )
+BOARD_FLAVOUR_LIST=( "ev1" "dk" )
 
 #######################################
 # Variables
@@ -72,7 +68,6 @@ do_onlydtb=0
 do_onlygpu=0
 do_onlywifi=0
 do_onlymodules=0
-do_onlymodulesinstall=0
 do_onlyvmlinux=0
 do_full=0
 do_gdb=0
@@ -93,21 +88,20 @@ kernel_debug_fragment=
 kernel_user_fragment=
 kernel_board_fragment=
 
-# TODO: remove after REVA obsolete
-kernel_reva_fragment="stm32mp2_reva.fragment"
-
 kernel_gpu_name=
 kernel_gpu_src=
 
 kernel_wifi_name=
 kernel_wifi_src=
 
+modules_install_path=
+gpu_module_install_path=
+
 dtc_flags=
 
 force=
 
 verbose="--quiet"
-verbose_level=0
 
 # By default redirect stdout and stderr to /dev/null
 redirect_out="/dev/null"
@@ -149,17 +143,15 @@ usage()
   echo "  -h/--help: print this message and exit"
   echo "  -v/--version: print script version and exit"
   echo "  -i/--install: update prebuilt images"
-  echo "  -d <val>/--debug=<val>: if <val>=1; integrate debug kernel configuration (default for userdebug or eng build variant)"
-  echo "                          if <val>=0; remove debug kernel configuration (default for user build variant)"
+  echo "  -d/--debug: enable script debug traces"
   echo "  -g/--gdb: generate vmlinux (kernel incl. symbols) and don't strip generated modules (keep symbols)"
-  echo "  --verbose=<level>: enable verbosity (1 or 2 depending on level of verbosity required)"
+  echo "  --verbose: enable verbosity"
   echo "Command: only one command at a time supported"
   echo "  dtb: build only device-tree binaries"
   echo "  gpu: build only gpu module (kernel is build if not already performed)"
   echo "  defaultconfig: build only .config based on default defconfig files and fragments"
   echo "  menuconfig: display standard Linux kernel menuconfig interface"
-  echo "  modules: build only kernel modules binaries (kernel is build if not already performed)"
-  echo "  modules_install: build kernel modules binaries (kernel is built if not already performed) and install them (also update the module.dep file)"
+  echo "  modules: build kernel modules and sign (kernel is built if not already performed)"
   echo "  mrproper: execute make mrproper on targeted kernel"
   echo "  vmlinux: build only kernel vmlinux binary"
   empty_line
@@ -412,22 +404,13 @@ generate_config()
     exit 1
   fi
 
-  # TODO: remove after REVA obsolete
-  if [[ ${SOC_REV} == "REVA" ]]; then
-    # Merge .config and .config.required with fragments and SoC configuration for Android
-    if [[ ${do_kdebug} == 1 ]]; then
-      ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_reva_fragment} ${l_config_path}/${kernel_debug_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
-    else
-      ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_reva_fragment} ${l_config_path}/${kernel_user_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
-    fi
-  else
     # Merge .config and .config.required with fragments and SoC configuration for Android
     if [[ ${do_kdebug} == 1 ]]; then
       ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_debug_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
     else
       ${KERNEL_SOURCE_PATH}/kconfig/${KERNEL_MERGE_CONFIG} ${kernel_src} ${KERNEL_OUT} ${KERNEL_ARCH} ${KERNEL_OUT}/.config ${l_config_path}/${kernel_soc_fragment} ${l_config_path}/${kernel_user_fragment} ${l_config_path}/${kernel_board_fragment} > ${KERNEL_OUT}/mergeconfig.log 2>&1
     fi
-  fi
+
   green "  => mergeconfig logs added in ${KERNEL_OUT}/mergeconfig.log"
 
   # Generate the corresponding defconfig file as refrence
@@ -489,6 +472,22 @@ clean_kernel_out()
 }
 
 #######################################
+# Extract install path
+# Globals:
+#   I tmp_file (temporary file out of modules_install build)
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+extract_install_path()
+{
+  if [[ -f $1 ]]; then
+    install_path=$(grep "DEPMOD" "$1" | tail -n 1 | awk '{print $2}')
+  fi
+}
+
+#######################################
 # Generate Kernel binary
 # Globals:
 #   I kernel_src
@@ -523,13 +522,44 @@ generate_kernel()
     done
   done
 
-  debug "make ${verbose} -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${modulesinstall_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1"
-  \make ${verbose} -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${modulesinstall_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1 &>${redirect_out}
+  tmp_out=$(mktemp)
+
+  if [[ "$1" == "modules_install" ]]; then
+    modulesinstall_param="INSTALL_MOD_PATH=${KERNEL_OUT}"
+
+    debug "make -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${modulesinstall_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1"
+    \make -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${modulesinstall_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1 > ${tmp_out}
   if [ $? -ne 0 ]; then
+      cat ${tmp_out}
     error "Not possible to generate the kernel image"
     popd >/dev/null 2>&1
     exit 1
   fi
+    \cat ${tmp_out} &>${redirect_out}
+    if [[ "$1" == "modules_install" ]]; then
+      extract_install_path ${tmp_out}
+      modules_install_path=${install_path}
+    fi
+    rm ${tmp_out}
+
+  else
+
+    if [[ "$1" == "dtbs" ]]; then
+      ext_dt_param="KBUILD_EXTDTS=${kernel_ext_dt}/linux"
+    else
+      ext_dt_param=""
+    fi
+
+    debug "make -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${ext_dt_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1"
+    \make -j8 -C ${kernel_src} O=${KERNEL_OUT} ${LLVM_OPTION} ${ext_dt_param} ARCH=${KERNEL_ARCH} ${force} ${dtc_flags} $1 &>${redirect_out}
+    if [ $? -ne 0 ]; then
+      error "Not possible to generate the kernel image"
+      popd >/dev/null 2>&1
+      exit 1
+    fi
+
+  fi
+
 }
 
 #######################################
@@ -559,6 +589,39 @@ generate_gpu_driver()
     exit 1
   fi
 }
+
+#######################################
+# Install GPU driver
+# Globals:
+#   I kernel_gpu_name
+#   I kernel_gpu_src
+#   I KERNEL_OUT
+#   I KERNEL_ARCH
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+install_gpu_driver()
+{
+
+  tmp_out=$(mktemp)
+  modulesinstall_param="INSTALL_MOD_PATH=${KERNEL_OUT}"
+  # Build GPU driver (add DEBUG=1 if debug required)
+  debug "make -j8 -C ${kernel_src} O=${KERNEL_OUT} M=${KERNEL_OUT}/${kernel_gpu_name} ${modulesinstall_param} ${LLVM_OPTION} CROSS_COMPILE=aarch64-none-linux-gnu- KERNEL_DIR=${KERNEL_OUT} ARCH_TYPE=${KERNEL_ARCH} SOC_PLATFORM=st-mp2 VIVANTE_ENABLE_DRM=1 modules_install"
+  \make -j8 -C ${kernel_src} O=${KERNEL_OUT} M=${KERNEL_OUT}/${kernel_gpu_name} ${modulesinstall_param} ${LLVM_OPTION} CROSS_COMPILE=aarch64-none-linux-gnu- KERNEL_DIR=${KERNEL_OUT} ARCH_TYPE=${KERNEL_ARCH} SOC_PLATFORM=st-mp2 VIVANTE_ENABLE_DRM=1 modules_install > ${tmp_out}
+  if [ $? -ne 0 ]; then
+    error "Not possible to install gpu driver module"
+    popd >/dev/null 2>&1
+    exit 1
+  fi
+  \cat ${tmp_out} &>${redirect_out}
+  extract_install_path ${tmp_out}
+  gpu_module_install_path=${install_path}
+  rm ${tmp_out}
+}
+
+
 
 #######################################
 # Generate WIFI driver
@@ -607,13 +670,12 @@ if [ -n "${TARGET_BUILD_VARIANT+1}" ]; then
   if [ "${TARGET_BUILD_VARIANT}" == "user" ]; then
     do_kdebug=0
   else
-    # echo "debug (-d) option forced for ${TARGET_BUILD_VARIANT} build variant"
     do_kdebug=1
   fi
 fi
 
 # check the options
-while getopts "hvid:g-:" option; do
+while getopts "hvidg-:" option; do
     case "${option}" in
         -)
             # Treat long options
@@ -628,17 +690,9 @@ while getopts "hvid:g-:" option; do
                     \popd >/dev/null 2>&1
                     exit 0
                     ;;
-                verbose=*)
-                    verbose_level=${OPTARG#*=}
+                verbose)
                     redirect_out="/dev/stdout"
-                    if ! in_list "0 1 2" "${verbose_level}"; then
-                        error "unknown verbose level ${verbose_level}"
-                        \popd >/dev/null 2>&1
-                        exit 1
-                    fi
-                    if [ ${verbose_level} == 2 ];then
                         verbose=
-                    fi
                     ;;
                 install)
                     if [[ ${do_install} == 0 ]]; then
@@ -646,13 +700,8 @@ while getopts "hvid:g-:" option; do
                     fi
                     do_install=1
                     ;;
-                debug=*)
-                    debug_level=${OPTARG#*=}
-                    if [ ${debug_level} == 0 ];then
-                      do_debug=0
-                    else
+                debug)
                       do_debug=1
-                    fi
                     ;;
                 gdb)
                     do_gdb=1
@@ -681,11 +730,7 @@ while getopts "hvid:g-:" option; do
             do_install=1
             ;;
         d)
-            if [[ ${OPTARG} == 0 ]]; then
-              do_debug=0
-            else
               do_debug=1
-            fi
             ;;
         g)
             do_gdb=1
@@ -715,12 +760,12 @@ if [ $# -eq 1 ]; then
       ;;
 
     "gpu" )
-      nb_states=$((nb_states+5))
+      nb_states=$((nb_states+6))
       do_onlygpu=1
       ;;
 
     "wifi" )
-      nb_states=$((nb_states+5))
+      nb_states=$((nb_states+6))
       do_onlywifi=1
       ;;
 
@@ -736,15 +781,8 @@ if [ $# -eq 1 ]; then
       ;;
 
     "modules" )
-      nb_states=$((nb_states+5))
-      do_onlymodules=1
-      ;;
-
-    "modules_install" )
       nb_states=$((nb_states+6))
       do_onlymodules=1
-      do_onlymodulesinstall=1
-      modulesinstall_param="INSTALL_MOD_PATH=${KERNEL_OUT}"
       ;;
 
     "mrproper" )
@@ -765,7 +803,7 @@ if [ $# -eq 1 ]; then
   esac
 else
   # case all
-  nb_states=8
+  nb_states=10
   if [[ ${do_install} == 1 ]]; then
     nb_states=$((nb_states+1))
   fi
@@ -838,12 +876,13 @@ fi
 # Execute menuconfig command if requested, then exist
 if [[ ${do_onlymenuconfig} == 1 ]]; then
   state "Start menuconfig panel for ${SOC_FAMILY}"
+
   # need to force redirection to stdout for menuconfig
+  store_redirect_out=${redirect_out}
   redirect_out="/dev/stdout"
   generate_kernel menuconfig
-  if [ ${verbose_level} > 0 ];then
-    redirect_out="/dev/null"
-  fi
+  redirect_out=${store_redirect_out}
+
   generate_kernel savedefconfig
   popd >/dev/null 2>&1
   exit 0
@@ -882,13 +921,12 @@ do_execute || {
   if [[ ${do_onlygpu} == 0 ]] && [[ ${do_onlywifi} == 0 ]]; then
     state "Generate modules for ${SOC_FAMILY}"
     generate_kernel modules
-    if [[ ${do_onlymodulesinstall} == 1 ]]; then
-      state "Install modules for ${SOC_FAMILY}"
+
+    state "Sign modules for ${SOC_FAMILY}"
       generate_kernel modules_install
-    fi
-    if [[ ${do_onlymodules} == 1 ]]; then
-      execute_more=0
-    fi
+
+    # need to execute external modules also (keep execute_more enabled)
+
   fi
 
 }
@@ -916,6 +954,9 @@ do_execute || {
     state "Generate GPU driver module for ${SOC_FAMILY}"
     if  [ -d "${kernel_gpu_src}" ]; then
       generate_gpu_driver
+
+      state "Sign GPU driver module for ${SOC_FAMILY}"
+      install_gpu_driver
     else
       warning "${kernel_gpu_src} directory not found, can't generate GPU module"
     fi
@@ -947,15 +988,6 @@ if [[ ${do_install} == 1 ]]; then
         debug "cp $(find ${KERNEL_OUT}/ -name "${soc_version}.dtb" -print0 | tr '\0' '\n') ${KERNEL_PREBUILT_PATH}/dts/${soc_version}"
         \find ${KERNEL_OUT}/ -name "${soc_version}.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}
 
-        if [[ ${SOC_REV} == "REVA" ]]; then
-          if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva" ]; then
-            \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva
-          fi
-          \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva/*
-          debug "cp $(find ${KERNEL_OUT}/ -name "${soc_version}-revB.dtb" -print0 | tr '\0' '\n')"
-          \find ${KERNEL_OUT}/ -name "${soc_version}-revB.dtb" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-reva
-        fi
-
         for board_flavour in "${BOARD_FLAVOUR_LIST[@]}"
         do
           if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}" ]; then
@@ -963,27 +995,20 @@ if [[ ${do_install} == 1 ]]; then
           fi
           \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}/*
           \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}-overlay.dtbo" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}
-
-          if [[ ${SOC_REV} == "REVA" ]]; then
-            if  [ ! -d "${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva" ]; then
-              \mkdir -p ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva
-            fi
-            \rm -f ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva/*
-            \find ${KERNEL_OUT}/ -name "${soc_version}-${board_flavour}-revB-overlay.dtbo" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/dts/${soc_version}-${board_flavour}-reva
-          fi
-
         done
       done
     fi
 
     if [[ ${do_onlydtb} == 0 ]] && [[ ${do_onlyvmlinux} == 0 ]]; then
       \rm -f ${KERNEL_PREBUILT_PATH}/modules/*
-      \find ${KERNEL_OUT}/ -name "*.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
-      if [[ ${do_gdb} == 0 ]]; then
-        ${LLVM_TOOLCHAIN}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/*.ko
-      fi
-      if [[ ${do_onlymodulesinstall} == 1 ]]; then
-        \find ${KERNEL_OUT}/ -name "modules.dep" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+        if  [ -d "${modules_install_path}" ]; then
+          \find ${modules_install_path}/ -name "*.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+          \find ${modules_install_path}/ -name "modules.dep" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+          \find ${modules_install_path}/ -name "modules.order" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+          \find ${modules_install_path}/ -name "modules.builtin" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+          \find ${modules_install_path}/ -name "modules.builtin.modinfo" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+        else
+          error "Missing installation directory for modules, enable verbose for more information"
       fi
     fi
 
@@ -998,9 +1023,10 @@ if [[ ${do_install} == 1 ]]; then
   else
     if [[ ${do_onlygpu} == 1 ]]; then
       if [ -n "${kernel_gpu_name}" ]; then
-        \find ${KERNEL_OUT}/ -name "${kernel_gpu_name}.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
-        if [[ ${do_gdb} == 0 ]]; then
-          ${LLVM_TOOLCHAIN}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_gpu_name}.ko
+        if  [ -d "${gpu_module_install_path}" ]; then
+          \find ${gpu_module_install_path}/ -name "${kernel_gpu_name}.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
+        else
+          error "Missing installation directory for ${kernel_gpu_name}.ko, enable verbose for more information"
         fi
       else
         error "Undefined GPU name in build configuration file"
@@ -1009,9 +1035,6 @@ if [[ ${do_install} == 1 ]]; then
     if [[ ${do_onlywifi} == 1 ]]; then
       if [ -n "${kernel_wifi_name}" ]; then
         \find ${KERNEL_OUT}/ -name "${kernel_wifi_name}.ko" -print0 | xargs -0 -I {} cp {} ${KERNEL_PREBUILT_PATH}/modules/
-        if [[ ${do_gdb} == 0 ]]; then
-          ${LLVM_TOOLCHAIN}strip  --strip-debug  ${KERNEL_PREBUILT_PATH}/modules/${kernel_wifi_name}.ko
-        fi
       else
         error "Undefined WIFI name in build configuration file"
       fi

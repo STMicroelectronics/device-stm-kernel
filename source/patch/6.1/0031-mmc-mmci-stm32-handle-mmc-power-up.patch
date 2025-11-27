@@ -1,0 +1,37 @@
+From 8a65488d9e3b2b766ec828ae52f4a24340de2e61 Mon Sep 17 00:00:00 2001
+From: Christophe Kerello <christophe.kerello@foss.st.com>
+Date: Tue, 17 Dec 2024 10:03:05 +0100
+Subject: [PATCH 31/33] mmc: mmci: stm32: handle mmc power up
+
+Manage MMC POWER UP state like MMC POWER OFF state. In case of low power
+use cases, it will avoid random initialization timeout.
+
+Change-Id: I6551ca3fb2f478e69ccd2e32ee03acb1523fbf52
+Signed-off-by: Christophe Kerello <christophe.kerello@foss.st.com>
+Reviewed-on: https://gerrit.st.com/c/mpu/oe/st/linux-stm32/+/425307
+ACI: CIBUILD <MDG-smet-aci-builds@list.st.com>
+Reviewed-by: Christophe KERELLO <christophe.kerello@st.com>
+Domain-Review: Christophe KERELLO <christophe.kerello@st.com>
+ACI: CITOOLS <MDG-smet-aci-reviews@list.st.com>
+Tested-by: Christophe KERELLO <christophe.kerello@st.com>
+---
+ drivers/mmc/host/mmci_stm32_sdmmc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/mmc/host/mmci_stm32_sdmmc.c b/drivers/mmc/host/mmci_stm32_sdmmc.c
+index 503cfcaea98d3..1f055cef33ea5 100644
+--- a/drivers/mmc/host/mmci_stm32_sdmmc.c
++++ b/drivers/mmc/host/mmci_stm32_sdmmc.c
+@@ -367,7 +367,8 @@ static void mmci_sdmmc_set_pwrreg(struct mmci_host *host, unsigned int pwr)
+ 	if (dlyb && dlyb->ops->set_input_ck)
+ 		dlyb->ops->set_input_ck(dlyb);
+ 
+-	if (ios.power_mode == MMC_POWER_OFF) {
++	if (ios.power_mode == MMC_POWER_OFF ||
++	    ios.power_mode == MMC_POWER_UP) {
+ 		/* Only a reset could power-off sdmmc */
+ 		reset_control_assert(host->rst);
+ 		udelay(2);
+-- 
+2.34.1
+

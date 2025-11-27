@@ -1,0 +1,26 @@
+From 613b2e6b3c25e03ae41bc070357e24d05d8de7cb Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Wed, 15 Oct 2025 15:53:02 +0200
+Subject: [PATCH 28/33] fixup! drivers:media: correct logical inversion
+
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+---
+ drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-statcap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-statcap.c b/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-statcap.c
+index f4c5c356a70e2..1baea72416761 100644
+--- a/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-statcap.c
++++ b/drivers/media/platform/st/stm32/stm32-dcmipp/dcmipp-statcap.c
+@@ -807,7 +807,7 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
+ 
+ 		if (vcap->prev_capture_state == PHY_BIN_3_SHA_AV_RGB) {
+ 			/* The data capture refer to the previous location */
+-			avr_bins = !vcap->stat_location == DCMIPP_P1STXCR_SRC_LOC_PRE ?
++			avr_bins = !(vcap->stat_location == DCMIPP_P1STXCR_SRC_LOC_PRE) ?
+ 					&vcap->local_buf.pre : &vcap->local_buf.post;
+ 			/* Accumulators contains the 4th set of BINS */
+ 			for (i = 0; i < 3; i++)
+-- 
+2.34.1
+

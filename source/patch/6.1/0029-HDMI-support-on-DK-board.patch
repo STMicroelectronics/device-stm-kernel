@@ -1,0 +1,34 @@
+From 6d708641bf55c26d6d25688ec6b7e7683abe518c Mon Sep 17 00:00:00 2001
+From: Philippe PAGE <philippe.page@st.com>
+Date: Tue, 30 Sep 2025 14:49:13 +0200
+Subject: [PATCH 29/33] HDMI support on DK board
+
+---
+ arch/arm64/boot/dts/st/stm32mp257f-dk-overlay.dts | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/st/stm32mp257f-dk-overlay.dts b/arch/arm64/boot/dts/st/stm32mp257f-dk-overlay.dts
+index 1a39dc932dcb8..115f274c7d5a5 100644
+--- a/arch/arm64/boot/dts/st/stm32mp257f-dk-overlay.dts
++++ b/arch/arm64/boot/dts/st/stm32mp257f-dk-overlay.dts
+@@ -262,7 +262,7 @@ &dsi {
+ 	#size-cells = <0>;
+ 	vdd-supply =  <&scmi_vddcore>;
+ 	vdda18-supply = <&scmi_v1v8>;
+-	status = "disabled";
++	status = "okay";
+ 
+ 	ports {
+ 		#address-cells = <1>;
+@@ -429,7 +429,7 @@ &i2s2 {
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&i2s2_pins_b>;
+ 	pinctrl-1 = <&i2s2_sleep_pins_b>;
+-	status = "disabled";
++	status = "okay";
+ 	dmas = <&hpdma 51 0x43 0x12>,
+ 	       <&hpdma 52 0x43 0x21>;
+ 	dma-names = "rx", "tx";
+-- 
+2.34.1
+

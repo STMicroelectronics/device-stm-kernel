@@ -1,0 +1,36 @@
+From ff9379d67a528e929d2bf2bc3d2776d371175a83 Mon Sep 17 00:00:00 2001
+From: Yannick Fertre <yannick.fertre@foss.st.com>
+Date: Wed, 29 May 2024 10:42:11 +0200
+Subject: [PATCH 20/33] drm/stm: ltdc: flush remaining vblank event
+
+When closing the crtc, check the crtc status and
+send an event if necessary.
+
+Change-Id: I791f8e9b8b05084f50f184ecf50067adbf90eb61
+Signed-off-by: Yannick Fertre <yannick.fertre@foss.st.com>
+---
+ drivers/gpu/drm/stm/ltdc.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/gpu/drm/stm/ltdc.c b/drivers/gpu/drm/stm/ltdc.c
+index c03d17b2d420f..b26dcfdddc1ee 100644
+--- a/drivers/gpu/drm/stm/ltdc.c
++++ b/drivers/gpu/drm/stm/ltdc.c
+@@ -980,6 +980,14 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
+ 
+ 	DRM_DEBUG_DRIVER("\n");
+ 
++	/* Flush remaining vblank event*/
++	if (crtc->state->event && !crtc->state->active) {
++		spin_lock_irq(&crtc->dev->event_lock);
++		drm_crtc_send_vblank_event(crtc, crtc->state->event);
++		spin_unlock_irq(&crtc->dev->event_lock);
++		crtc->state->event = NULL;
++	}
++
+ 	drm_crtc_vblank_off(crtc);
+ 
+ 	/* Disable all layers */
+-- 
+2.34.1
+

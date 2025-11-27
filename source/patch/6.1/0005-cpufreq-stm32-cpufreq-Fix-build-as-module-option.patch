@@ -1,0 +1,81 @@
+From b5e472265bd627f3cc8e7c6ef0e1924b9737b588 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Wed, 15 Dec 2021 16:30:04 +0100
+Subject: [PATCH 05/33] cpufreq: stm32-cpufreq: Fix build as module option
+
+The macro module_init is defined twice:
+- in the module_platform_driver macro
+- directly in the driver
+
+Keep only the module_init usage as the init function has specificities.
+Add the module_exit as not anymore defined in this condition.
+
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+---
+ drivers/cpufreq/stm32-cpufreq.c | 36 ++++++++++++++++++++++++---------
+ 1 file changed, 27 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/cpufreq/stm32-cpufreq.c b/drivers/cpufreq/stm32-cpufreq.c
+index b552e22e6f983..76d57fe8c1974 100644
+--- a/drivers/cpufreq/stm32-cpufreq.c
++++ b/drivers/cpufreq/stm32-cpufreq.c
+@@ -18,6 +18,8 @@ struct stm32_cpufreq_priv {
+ 	struct platform_device *cpufreq_dt_pdev;
+ };
+ 
++static struct platform_device *stm32_cpufreq_pdev;
++
+ static int stm32_cpufreq_probe(struct platform_device *pdev)
+ {
+ 	struct stm32_cpufreq_priv *priv;
+@@ -77,14 +79,6 @@ static int stm32_cpufreq_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
+-static int stm32_cpufreq_init(void)
+-{
+-	platform_device_register_simple("stm32-cpufreq", -1, NULL, 0);
+-
+-	return 0;
+-}
+-module_init(stm32_cpufreq_init);
+-
+ static struct platform_driver stm32_cpufreq_platdrv = {
+ 	.driver = {
+ 		.name	= "stm32-cpufreq",
+@@ -92,7 +86,31 @@ static struct platform_driver stm32_cpufreq_platdrv = {
+ 	.probe		= stm32_cpufreq_probe,
+ 	.remove		= stm32_cpufreq_remove,
+ };
+-module_platform_driver(stm32_cpufreq_platdrv);
++
++static int __init stm32_cpufreq_init(void)
++{
++	int ret;
++
++	ret = platform_driver_register(&stm32_cpufreq_platdrv);
++	if (unlikely(ret < 0))
++		return ret;
++
++	stm32_cpufreq_pdev = platform_device_register_simple("stm32-cpufreq", -1, NULL, 0);
++	ret = PTR_ERR_OR_ZERO(stm32_cpufreq_pdev);
++	if (ret == 0)
++		return 0;
++
++	platform_driver_unregister(&stm32_cpufreq_platdrv);
++	return ret;
++}
++module_init(stm32_cpufreq_init);
++
++static void __exit stm32_cpufreq_exit(void)
++{
++	platform_device_unregister(stm32_cpufreq_pdev);
++	platform_driver_unregister(&stm32_cpufreq_platdrv);
++}
++module_exit(stm32_cpufreq_exit);
+ 
+ MODULE_DESCRIPTION("STM32 CPU freq driver");
+ MODULE_AUTHOR("Alexandre Torgue <alexandre.torgue@st.com>");
+-- 
+2.34.1
+

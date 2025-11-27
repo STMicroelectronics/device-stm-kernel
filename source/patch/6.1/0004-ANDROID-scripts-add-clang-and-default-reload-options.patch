@@ -1,0 +1,87 @@
+From 9264ea839cc74e233d35d221dc1daad57c093a51 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Thu, 6 Aug 2020 09:19:06 +0200
+Subject: [PATCH 04/33] ANDROID: scripts: add clang and default reload options
+ to merge configs script
+
+1- add -C <triple> option to use clang toolchain
+2- add -d option for force default config reload
+
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+---
+ scripts/kconfig/merge_config.sh | 34 +++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/kconfig/merge_config.sh b/scripts/kconfig/merge_config.sh
+index e5b46980c22ae..d1dba3d95f6a4 100755
+--- a/scripts/kconfig/merge_config.sh
++++ b/scripts/kconfig/merge_config.sh
+@@ -27,6 +27,8 @@ usage() {
+ 	echo "  -n    use allnoconfig instead of alldefconfig"
+ 	echo "  -r    list redundant entries when merging fragments"
+ 	echo "  -y    make builtin have precedence over modules"
++	echo "  -C    clang/LLVM build selected"
++	echo "  -d    <config> force default config (several configs possible separated by space)"
+ 	echo "  -O    dir to put generated output files.  Consider setting \$KCONFIG_CONFIG instead."
+ 	echo "  -s    strict mode. Fail if the fragment redefines any value."
+ 	echo
+@@ -37,6 +39,7 @@ RUNMAKE=true
+ ALLTARGET=alldefconfig
+ WARNREDUN=false
+ BUILTIN=false
++CLANG=false
+ OUTPUT=.
+ STRICT=false
+ CONFIG_PREFIX=${CONFIG_-CONFIG_}
+@@ -67,6 +70,23 @@ while true; do
+ 		shift
+ 		continue
+ 		;;
++	"-C")
++		CLANG=true
++		shift
++		;;
++	"-d")
++		FORCE_DEFAULT=true
++		shift
++		CONFIG_DELETE_LIST=""
++		while true; do
++			if [[ "$1" == CONFIG_* ]]; then
++				CONFIG_DELETE_LIST+="$1 "
++				shift
++			else
++				break
++			fi
++		done
++		;;
+ 	"-O")
+ 		if [ -d $2 ];then
+ 			OUTPUT=$(echo $2 | sed 's/\/*$//')
+@@ -183,12 +203,22 @@ if [ "$OUTPUT" != "." ] ; then
+ 	OUTPUT_ARG="O=$OUTPUT"
+ fi
+ 
++# To force default, remove the config from the temporary config file
++if [ $FORCE_DEFAULT = "true" ]; then
++	for config in $CONFIG_DELETE_LIST; do
++		sed -i "/^${config}/d" $TMP_FILE
++		sed -i "/^\# ${config} is not set/d" $TMP_FILE
++	done
++fi
+ 
+ # Use the merged file as the starting point for:
+ # alldefconfig: Fills in any missing symbols with Kconfig default
+ # allnoconfig: Fills in any missing symbols with # CONFIG_* is not set
+-make KCONFIG_ALLCONFIG=$TMP_FILE $OUTPUT_ARG $ALLTARGET
+-
++if [ "$CLANG" = "false" ]; then
++	make KCONFIG_ALLCONFIG=$TMP_FILE $OUTPUT_ARG $ALLTARGET
++else
++	make KCONFIG_ALLCONFIG=$TMP_FILE $OUTPUT_ARG LLVM=1 $ALLTARGET
++fi
+ 
+ # Check all specified config values took (might have missed-dependency issues)
+ for CFG in $(sed -n -e "$SED_CONFIG_EXP1" -e "$SED_CONFIG_EXP2" $TMP_FILE); do
+-- 
+2.34.1
+

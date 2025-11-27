@@ -1,0 +1,61 @@
+From 497008ae926ca47efb9037ef7b7768b101404b88 Mon Sep 17 00:00:00 2001
+From: Christophe Kerello <christophe.kerello@foss.st.com>
+Date: Wed, 18 Dec 2024 13:42:22 +0100
+Subject: [PATCH 32/33] mmc: mmci: stm32: use the delay block above 100 MHz on
+ stm32mp25 SoC
+
+On stm32mp25 SoC, the delay block have to be used for external data
+frequency above 100 MHz.
+
+Change-Id: Ic5146bbac13d5569f9b64f0723f656f9903ee08a
+Signed-off-by: Christophe Kerello <christophe.kerello@foss.st.com>
+Reviewed-on: https://gerrit.st.com/c/mpu/oe/st/linux-stm32/+/426121
+Tested-by: Christophe KERELLO <christophe.kerello@st.com>
+Reviewed-by: Christophe KERELLO <christophe.kerello@st.com>
+ACI: CIBUILD <MDG-smet-aci-builds@list.st.com>
+ACI: CITOOLS <MDG-smet-aci-reviews@list.st.com>
+Domain-Review: Christophe KERELLO <christophe.kerello@st.com>
+---
+ drivers/mmc/host/mmci_stm32_sdmmc.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/mmc/host/mmci_stm32_sdmmc.c b/drivers/mmc/host/mmci_stm32_sdmmc.c
+index 1f055cef33ea5..c55f7911b95d1 100644
+--- a/drivers/mmc/host/mmci_stm32_sdmmc.c
++++ b/drivers/mmc/host/mmci_stm32_sdmmc.c
+@@ -75,6 +75,7 @@ struct sdmmc_dlyb {
+ 	void __iomem *base;
+ 	u32 unit;
+ 	u32 max;
++	unsigned int min_freq;
+ 	struct sdmmc_tuning_ops *ops;
+ };
+ 
+@@ -637,7 +638,7 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+ 
+ 	if ((host->mmc->ios.timing != MMC_TIMING_UHS_SDR104 &&
+ 	     host->mmc->ios.timing != MMC_TIMING_MMC_HS200) ||
+-	    host->mmc->actual_clock <= 50000000)
++	    host->mmc->actual_clock <= dlyb->min_freq)
+ 		return 0;
+ 
+ 	if (!dlyb || !dlyb->base)
+@@ -748,10 +749,13 @@ void sdmmc_variant_init(struct mmci_host *host)
+ 		return;
+ 
+ 	dlyb->base = base_dlyb;
+-	if (of_device_is_compatible(np, "st,stm32mp25-sdmmc2"))
++	if (of_device_is_compatible(np, "st,stm32mp25-sdmmc2")) {
+ 		dlyb->ops = &dlyb_tuning_mp25_ops;
+-	else
++		dlyb->min_freq = 100000000;
++	} else {
+ 		dlyb->ops = &dlyb_tuning_mp15_ops;
++		dlyb->min_freq = 50000000;
++	}
+ 
+ 	host->variant_priv = dlyb;
+ 	host->mmc_ops->execute_tuning = sdmmc_execute_tuning;
+-- 
+2.34.1
+

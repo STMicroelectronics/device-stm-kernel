@@ -1,0 +1,62 @@
+From 3e7da063ef39e92649f80e3e3a646038695485d3 Mon Sep 17 00:00:00 2001
+From: Yannick Fertre <yannick.fertre@foss.st.com>
+Date: Tue, 18 Jun 2024 13:10:36 +0200
+Subject: [PATCH 18/33] fixup! drm/stm: ltdc: remove crtc_set_nofb
+
+Change-Id: I8e48ae2ee59333173bd35dda46b3318a196ce859
+---
+ drivers/gpu/drm/stm/ltdc.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/gpu/drm/stm/ltdc.c b/drivers/gpu/drm/stm/ltdc.c
+index 722573bee2b28..c03d17b2d420f 100644
+--- a/drivers/gpu/drm/stm/ltdc.c
++++ b/drivers/gpu/drm/stm/ltdc.c
+@@ -1509,7 +1509,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
+ 									  plane);
+ 	struct drm_framebuffer *fb = newstate->fb;
+ 	u32 lofs = plane->index * LAY_OFS;
+-	u32 val, pitch_in_bytes, line_length, line_number, ahbp, avbp, bpcr;
++	u32 val, pitch_in_bytes, line_length, line_number, ahbp, avbp;
+ 	u32 paddr, paddr1, paddr2, lxcr;
+ 	enum ltdc_pix_fmt pf;
+ 	unsigned int plane_rotation = newstate->rotation;
+@@ -1517,6 +1517,8 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
+ 	struct drm_connector *connector = NULL;
+ 	struct drm_encoder *encoder = NULL, *en_iter;
+ 	struct drm_rect dst, src;
++	struct drm_crtc *crtc = newstate->crtc;
++	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+ 	int orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+ 
+ 	if (!newstate->crtc || !fb) {
+@@ -1556,13 +1558,11 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
+ 	if (!pm_runtime_active(ddev->dev))
+ 		return;
+ 
+-	regmap_read(ldev->regmap, LTDC_BPCR, &bpcr);
+-
+ 	if (ldev->caps.crtc_rotation &&
+ 	    (orientation == DRM_MODE_PANEL_ORIENTATION_RIGHT_UP ||
+ 	     orientation == DRM_MODE_PANEL_ORIENTATION_LEFT_UP)) {
+-		avbp = (bpcr & BPCR_AHBP) >> 16;
+-		ahbp = bpcr & BPCR_AVBP;
++		avbp = mode->htotal - mode->hsync_start - 1;
++		ahbp = mode->vtotal - mode->vsync_start - 1;
+ 
+ 		/* Configures the horizontal start and stop position */
+ 		val = (dst.x1 + 1 + ahbp) + ((dst.x2 + ahbp) << 16);
+@@ -1592,8 +1592,8 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
+ 				plane_rotation |= DRM_MODE_REFLECT_Y;
+ 		}
+ 	} else {
+-		ahbp = (bpcr & BPCR_AHBP) >> 16;
+-		avbp = bpcr & BPCR_AVBP;
++		ahbp = mode->htotal - mode->hsync_start - 1;
++		avbp = mode->vtotal - mode->vsync_start - 1;
+ 
+ 		/* Configures the horizontal start and stop position */
+ 		val = ((dst.x2 + ahbp) << 16) + (dst.x1 + 1 + ahbp);
+-- 
+2.34.1
+

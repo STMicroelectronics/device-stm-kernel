@@ -1,0 +1,77 @@
+From 0d60c1b96adc6f9d76c7d928addbe92d89de49b7 Mon Sep 17 00:00:00 2001
+From: Yves COPPEAUX <yves.coppeaux@st.com>
+Date: Wed, 11 Oct 2023 11:03:15 +0200
+Subject: [PATCH 06/33] pinctrl:stm32: allow the option of building as module
+ (BSPv5.0.0)
+
+---
+ drivers/pinctrl/stm32/Kconfig              | 4 ++--
+ drivers/pinctrl/stm32/pinctrl-stm32mp135.c | 6 ++++++
+ drivers/pinctrl/stm32/pinctrl-stm32mp157.c | 6 ++++++
+ 3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/pinctrl/stm32/Kconfig b/drivers/pinctrl/stm32/Kconfig
+index 7884e9a6f765d..4c49ff98ed5f1 100644
+--- a/drivers/pinctrl/stm32/Kconfig
++++ b/drivers/pinctrl/stm32/Kconfig
+@@ -41,13 +41,13 @@ config PINCTRL_STM32H743
+ 	select PINCTRL_STM32
+ 
+ config PINCTRL_STM32MP135
+-	bool "STMicroelectronics STM32MP135 pin control" if COMPILE_TEST && !MACH_STM32MP13
++	tristate "STMicroelectronics STM32MP135 pin control"
+ 	depends on OF && HAS_IOMEM
+ 	default MACH_STM32MP13
+ 	select PINCTRL_STM32
+ 
+ config PINCTRL_STM32MP157
+-	bool "STMicroelectronics STM32MP157 pin control" if COMPILE_TEST && !MACH_STM32MP157
++	tristate "STMicroelectronics STM32MP157 pin control"
+ 	depends on OF && HAS_IOMEM
+ 	default MACH_STM32MP157
+ 	select PINCTRL_STM32
+diff --git a/drivers/pinctrl/stm32/pinctrl-stm32mp135.c b/drivers/pinctrl/stm32/pinctrl-stm32mp135.c
+index fde1df191c247..7e76cfa5031cc 100644
+--- a/drivers/pinctrl/stm32/pinctrl-stm32mp135.c
++++ b/drivers/pinctrl/stm32/pinctrl-stm32mp135.c
+@@ -3,6 +3,7 @@
+  * Copyright (C) STMicroelectronics 2021 - All Rights Reserved
+  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
+  */
++#include <linux/module.h>
+ #include <linux/init.h>
+ #include <linux/of.h>
+ #include <linux/platform_device.h>
+@@ -1678,3 +1679,8 @@ static int __init stm32mp135_pinctrl_init(void)
+ 	return platform_driver_register(&stm32mp135_pinctrl_driver);
+ }
+ arch_initcall(stm32mp135_pinctrl_init);
++
++MODULE_AUTHOR("Alexandre Torgue <alexandre.torgue@st.com>");
++MODULE_DESCRIPTION("STM32MP135 pinctrl driver");
++MODULE_LICENSE("GPL v2");
++MODULE_DEVICE_TABLE(of, stm32mp135_pctrl_match);
+diff --git a/drivers/pinctrl/stm32/pinctrl-stm32mp157.c b/drivers/pinctrl/stm32/pinctrl-stm32mp157.c
+index 91b2fc8ddbdbc..78ff1bee73270 100644
+--- a/drivers/pinctrl/stm32/pinctrl-stm32mp157.c
++++ b/drivers/pinctrl/stm32/pinctrl-stm32mp157.c
+@@ -3,6 +3,7 @@
+  * Copyright (C) STMicroelectronics 2017 - All Rights Reserved
+  * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
+  */
++#include <linux/module.h>
+ #include <linux/init.h>
+ #include <linux/of.h>
+ #include <linux/platform_device.h>
+@@ -2360,3 +2361,8 @@ static int __init stm32mp157_pinctrl_init(void)
+ 	return platform_driver_register(&stm32mp157_pinctrl_driver);
+ }
+ arch_initcall(stm32mp157_pinctrl_init);
++
++MODULE_AUTHOR("Alexandre Torgue <alexandre.torgue@st.com>");
++MODULE_DESCRIPTION("STM32MP157 pinctrl driver");
++MODULE_LICENSE("GPL v2");
++MODULE_DEVICE_TABLE(of, stm32mp157_pctrl_match);
+-- 
+2.34.1
+

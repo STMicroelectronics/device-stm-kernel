@@ -1,0 +1,26 @@
+From 272f329f6c302effbdc208d05e5f65aeb08f0e49 Mon Sep 17 00:00:00 2001
+From: Philippe PAGE <philippe.page@st.com>
+Date: Tue, 26 Aug 2025 11:22:37 +0200
+Subject: [PATCH 24/33] Fix LTDC blending for overlay activation
+
+---
+ drivers/gpu/drm/stm/ltdc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/stm/ltdc.c b/drivers/gpu/drm/stm/ltdc.c
+index eb436f5fcf74b..3c9ca6c3a4206 100644
+--- a/drivers/gpu/drm/stm/ltdc.c
++++ b/drivers/gpu/drm/stm/ltdc.c
+@@ -1612,7 +1612,8 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
+ 	regmap_write(ldev->regmap, LTDC_L1DCCR + lofs, DCCR_DCBLACK);
+ 
+ 	/* Specifies the blending factors */
+-	val = BF1_PAXCA | BF2_1PAXCA;
++	//val = BF1_PAXCA | BF2_1PAXCA;
++	val = BF1_CA | BF2_1PAXCA;
+ 	if (!fb->format->has_alpha)
+ 		val = BF1_CA | BF2_1CA;
+ 
+-- 
+2.34.1
+
