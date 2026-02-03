@@ -1,0 +1,24 @@
+From ea4b5acfa24065142f19a778db431910be10fa95 Mon Sep 17 00:00:00 2001
+From: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+Date: Tue, 3 Feb 2026 16:53:34 +0100
+Subject: [PATCH] fixup! scripts:kconfig: merge_config.sh must be executed with
+ bash
+
+Signed-off-by: Nicolas LOUBOUTIN <nicolas.louboutin@st.com>
+---
+ scripts/kconfig/merge_config.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/kconfig/merge_config.sh b/scripts/kconfig/merge_config.sh
+index d1dba3d95f6a4..d4330dc4052f4 100755
+--- a/scripts/kconfig/merge_config.sh
++++ b/scripts/kconfig/merge_config.sh
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ # SPDX-License-Identifier: GPL-2.0
+ #
+ #  merge_config.sh - Takes a list of config fragment values, and merges
+-- 
+2.34.1
+
